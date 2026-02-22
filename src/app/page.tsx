@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { signInWithGithubAction, signInWithGoogleAction } from "@/actions/auth";
 import { auth } from "@/auth";
+import { env } from "@/lib/env";
 import { manifestoParagraphs, manifestoTitle } from "@/lib/manifesto";
 
 export default async function HomePage() {
@@ -42,16 +43,23 @@ export default async function HomePage() {
             Sign in with a standard provider. You will be asked to explicitly accept the covenant before continuing.
           </p>
           <div className="form-grid">
-            <form action={signInWithGoogleAction}>
-              <button type="submit" className="lloyds-button">
-                Continue with Google
-              </button>
-            </form>
-            <form action={signInWithGithubAction}>
-              <button type="submit" className="lloyds-button-secondary">
-                Continue with GitHub
-              </button>
-            </form>
+            {env.hasGoogleOAuth ? (
+              <form action={signInWithGoogleAction}>
+                <button type="submit" className="lloyds-button">
+                  Continue with Google
+                </button>
+              </form>
+            ) : null}
+            {env.hasGithubOAuth ? (
+              <form action={signInWithGithubAction}>
+                <button type="submit" className="lloyds-button-secondary">
+                  Continue with GitHub
+                </button>
+              </form>
+            ) : null}
+            {!env.hasGoogleOAuth && !env.hasGithubOAuth ? (
+              <p>Sign-in providers are not configured yet for this environment.</p>
+            ) : null}
           </div>
         </aside>
       </div>

@@ -6,20 +6,22 @@ import Google from "next-auth/providers/google";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
-  session: {
-    strategy: "database",
-  },
-  trustHost: process.env.AUTH_TRUST_HOST === "true",
-  providers: [
+const providers = [];
+
+if (env.githubClientId && env.githubClientSecret) {
+  providers.push(
     GitHub({
-      clientId: env.githubClientId ?? "",
-      clientSecret: env.githubClientSecret ?? "",
+      clientId: env.githubClientId,
+      clientSecret: env.githubClientSecret,
     }),
+  );
+}
+
+if (env.googleClientId && env.googleClientSecret) {
+  providers.push(
     Google({
-      clientId: env.googleClientId ?? "",
-      clientSecret: env.googleClientSecret ?? "",
+      clientId: env.googleClientId,
+      clientSecret: env.googleClientSecret,
       authorization: {
         params: {
           scope:
@@ -30,7 +32,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
       },
     }),
-  ],
+  );
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  session: {
+    strategy: "database",
+  },
+  trustHost: process.env.AUTH_TRUST_HOST === "true",
+  providers,
   callbacks: {
     session: async ({ session, user }) => {
       if (session.user) {
