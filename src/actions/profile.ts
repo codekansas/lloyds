@@ -1,0 +1,64 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+
+import { requireManifestoUser } from "@/lib/auth-guards";
+import { prisma } from "@/lib/prisma";
+import { syncUserBlogFeedSource } from "@/lib/profile";
+
+const profileSchema = z.object({
+  name: z.string().max(120).optional(),
+  timezone: z.string().max(80).optional(),
+  headline: z.string().max(160).optional(),
+  bio: z.string().max(4_000).optional(),
+  interests: z.string().max(4_000).optional(),
+  goals: z.string().max(4_000).optional(),
+  ideasInFlight: z.string().max(4_000).optional(),
+  blogFeedUrl: z.union([z.string().url(), z.literal("")]).optional(),
+});
+
+export const updateProfileAction = async (formData: FormData): Promise<void> => {
+  const user = await requireManifestoUser();
+
+  const parsed = profileSchema.safeParse({
+    name: formData.get("name") || undefined,
+    timezone: formData.get("timezone") || undefined,
+    headline: formData.get("headline") || undefined,
+    bio: formData.get("bio") || undefined,
+    interests: formData.get("interests") || undefined,
+    goals: formData.get("goals") || undefined,
+    ideasInFlight: formData.get("ideasInFlight") || undefined,
+    blogFeedUrl: formData.get("blogFeedUrl") || undefined,
+  });
+
+  if (!parsed.success) {
+    redirect("/profile?error=invalid-input");
+  }
+
+  const data = parsed.data;
+  const blogFeedUrl = data.blogFeedUrl?.trim() || null;
+
+  await prisma.user.update({
+    where: {
+      id: user.id,
+    },
+    data: {
+      name: data.name?.trim() || null,
+      timezone: data.timezone?.trim() || "UTC",
+      headline: data.headline?.trim() || null,
+      bio: data.bio?.trim() || null,
+      interests: data.interests?.trim() || null,
+      goals: data.goals?.trim() || null,
+      ideasInFlight: data.ideasInFlight?.trim() || null,
+      blogFeedUrl,
+    },
+  });
+
+  await syncUserBlogFeedSource(user.id, blogFeedUrl);
+
+  revalidatePath("/profile");
+  revalidatePath("/feed");
+  redirect("/profile?saved=1");
+};

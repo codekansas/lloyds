@@ -1,0 +1,457 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #17120a;
+  --ink-soft: #4d4332;
+  --paper: #f3ebd8;
+  --paper-deep: #e6dbc3;
+  --accent: #7b4f1e;
+  --accent-bright: #b16a22;
+  --line: rgba(23, 18, 10, 0.25);
+  --ok: #1c6e37;
+  --error: #9f2323;
+}
+
+@theme inline {
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-utility);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.lloyds-body {
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 20% -10%, rgba(250, 246, 234, 0.9) 0%, rgba(243, 235, 216, 0.92) 35%, rgba(230, 219, 195, 0.96) 100%),
+    linear-gradient(145deg, rgba(17, 12, 8, 0.08), transparent 35%);
+  min-height: 100vh;
+  font-family: var(--font-body), Georgia, serif;
+}
+
+.lloyds-main {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.lloyds-nav {
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(3px);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: linear-gradient(180deg, rgba(243, 235, 216, 0.96), rgba(243, 235, 216, 0.82));
+}
+
+.lloyds-nav-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0.8rem 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.lloyds-wordmark {
+  text-transform: uppercase;
+  font-family: var(--font-masthead), serif;
+  letter-spacing: 0.06em;
+  font-size: clamp(1.15rem, 2.5vw, 1.85rem);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.lloyds-nav-links {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lloyds-nav-links a {
+  border: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  padding: 0.35rem 0.55rem;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.lloyds-nav-user {
+  font-family: var(--font-utility), monospace;
+  font-size: 0.75rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-self: end;
+  text-align: right;
+}
+
+.lloyds-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.masthead {
+  border-top: 5px double var(--ink);
+  border-bottom: 5px double var(--ink);
+  padding: 1.25rem 0.8rem 1.1rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.33);
+  box-shadow: 0 16px 45px rgba(29, 19, 10, 0.08);
+}
+
+.masthead h1,
+.masthead h2 {
+  margin: 0;
+  font-family: var(--font-masthead), serif;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+.masthead h1 {
+  letter-spacing: 0.1em;
+  font-size: clamp(2rem, 8vw, 3.8rem);
+}
+
+.masthead h2 {
+  margin-top: 0.3rem;
+  letter-spacing: 0.16em;
+  font-size: clamp(1rem, 3.2vw, 1.75rem);
+}
+
+.masthead p {
+  margin: 0.7rem 0 0;
+  font-family: var(--font-utility), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.72rem;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  padding: 1rem;
+  background: rgba(253, 250, 240, 0.78);
+  box-shadow: 0 8px 35px rgba(28, 20, 12, 0.05);
+}
+
+.panel h2,
+.panel h3 {
+  margin-top: 0;
+  font-family: var(--font-masthead), serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.split-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  font-family: var(--font-utility), monospace;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-soft);
+}
+
+input,
+textarea,
+select {
+  font-family: var(--font-body), serif;
+  font-size: 1rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.58rem 0.62rem;
+  color: var(--ink);
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: rgba(123, 79, 30, 0.7);
+  box-shadow: 0 0 0 3px rgba(123, 79, 30, 0.14);
+}
+
+button {
+  font: inherit;
+}
+
+.lloyds-button,
+.lloyds-button-secondary {
+  border: 1px solid var(--ink);
+  padding: 0.5rem 0.8rem;
+  font-family: var(--font-utility), monospace;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.lloyds-button {
+  color: #fff;
+  background: linear-gradient(90deg, #28180c, #563312);
+}
+
+.lloyds-button:hover {
+  background: linear-gradient(90deg, #1e1208, #7a4a1b);
+}
+
+.lloyds-button-secondary {
+  background: transparent;
+  color: var(--ink);
+}
+
+.lloyds-button-secondary:hover {
+  background: rgba(28, 18, 9, 0.08);
+}
+
+.flash {
+  margin: 0;
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.65rem;
+  font-family: var(--font-utility), monospace;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.flash-info {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.flash-success {
+  background: rgba(28, 110, 55, 0.1);
+  border-color: rgba(28, 110, 55, 0.32);
+  color: var(--ok);
+}
+
+.flash-error {
+  background: rgba(159, 35, 35, 0.1);
+  border-color: rgba(159, 35, 35, 0.32);
+  color: var(--error);
+}
+
+.feed-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.feed-card {
+  border: 1px solid var(--line);
+  background: rgba(253, 250, 241, 0.88);
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.feed-card-header h2 {
+  margin: 0;
+  line-height: 1.2;
+  font-size: 1.35rem;
+}
+
+.feed-card-header h2 a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.feed-card-header h2 a:hover {
+  text-decoration: underline;
+}
+
+.feed-card-meta {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.feed-card-meta span {
+  font-family: var(--font-utility), monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line);
+  padding: 0.18rem 0.38rem;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.feed-summary {
+  border-top: 1px dashed var(--line);
+  padding-top: 0.6rem;
+}
+
+.feed-summary-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.feed-summary-title strong {
+  font-family: var(--font-utility), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.feed-summary-title span {
+  font-family: var(--font-utility), monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.feed-summary ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.38rem;
+}
+
+.feed-summary p {
+  margin: 0.45rem 0 0;
+}
+
+.manifesto p {
+  margin: 0;
+  font-size: 1.11rem;
+  line-height: 1.45;
+}
+
+.manifesto {
+  display: grid;
+  gap: 1rem;
+}
+
+.manifesto-copy {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.manifesto-tenets {
+  border-top: 1px dashed var(--line);
+  margin-top: 1rem;
+  padding-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.manifesto-tenets label {
+  text-transform: none;
+  font-family: var(--font-body), serif;
+  letter-spacing: 0;
+  font-size: 1rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.55rem;
+  align-items: baseline;
+}
+
+.manifesto-tenets input {
+  width: 1rem;
+  height: 1rem;
+}
+
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.stats-row span {
+  font-family: var(--font-utility), monospace;
+  font-size: 0.68rem;
+  border: 1px solid var(--line);
+  padding: 0.18rem 0.38rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.list-clean {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.list-clean li {
+  margin-bottom: 0.32rem;
+}
+
+.match-card {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.52);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.match-card h3 {
+  margin: 0;
+  font-family: var(--font-masthead), serif;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+a {
+  color: inherit;
+}
+
+@media (min-width: 900px) {
+  .lloyds-main {
+    padding: 2.4rem 1.8rem 4rem;
+  }
+
+  .split-grid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+
+  .manifesto {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+@media (max-width: 860px) {
+  .lloyds-nav-inner {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .lloyds-nav-user {
+    justify-self: start;
+    text-align: left;
+  }
+}

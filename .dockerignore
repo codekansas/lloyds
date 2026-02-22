@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+.next
+node_modules
+playwright-report
+test-results
+coverage
+.env*
+infra
+README.md
