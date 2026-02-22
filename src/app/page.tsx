@@ -37,7 +37,7 @@ export default async function HomePage() {
           </div>
         </article>
 
-        <aside className="panel">
+        <aside className="panel home-entry-panel">
           <h2>Enter the House</h2>
           <p>
             Sign in with a standard provider. You will be asked to explicitly accept the covenant before continuing.

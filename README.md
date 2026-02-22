@@ -17,6 +17,7 @@ AI-powered web application inspired by the original London coffee house: a high-
 ## Architecture docs
 - `/Users/ben/Github/lloyds/docs/architecture.md`
 - `/Users/ben/Github/lloyds/docs/agent-plan.md`
+- `/Users/ben/Github/lloyds/docs/development-guide.md`
 
 ## Stack
 - Next.js 16 + App Router + TypeScript
@@ -41,7 +42,10 @@ cp .env.example .env
 - `DATABASE_URL`
 - `AUTH_SECRET`
 - OAuth client credentials (`GOOGLE_*`, `GITHUB_*`)
-- `OPENAI_API_KEY` (optional but recommended)
+- `APP_ENV` (`development` for local)
+- OpenAI key config (pick one pattern):
+  - `OPENAI_API_KEY` (single explicit override)
+  - `OPENAI_API_KEY_DEVELOPMENT` / `OPENAI_API_KEY_STAGING` / `OPENAI_API_KEY_PRODUCTION`
 - `CRON_SECRET`
 
 4. Generate Prisma client and apply schema:
@@ -73,7 +77,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/jobs/inge
 ```
 
 ## End-to-end tests (Playwright)
-The suite covers manifesto gating, feed/submission, profile updates, matching, and cron job endpoints.
+The suite covers manifesto gating, user session creation, feed/submission, post comments, profile updates, matching, and cron job endpoints.
 
 1. Ensure `DATABASE_URL` points to a dedicated test Postgres database.
 2. Install browser binaries once:
@@ -89,6 +93,12 @@ Useful variants:
 ```bash
 npm run e2e:headed
 npm run e2e:ui
+```
+
+Staging checks (run against deployed staging URL):
+```bash
+STAGING_BASE_URL=https://cafestaging.bolte.cc npm run e2e:smoke
+STAGING_BASE_URL=https://cafestaging.bolte.cc npm run e2e:staging-acceptance
 ```
 
 ## AWS deployment (staging + production)
@@ -112,15 +122,15 @@ Apply environments:
 ```bash
 cd infra/aws/terraform
 AWS_PROFILE=professional terraform init
-AWS_PROFILE=professional terraform apply -var-file=environments/staging.tfvars
-AWS_PROFILE=professional terraform apply -var-file=environments/production.tfvars
+AWS_PROFILE=professional terraform apply -var-file=environments/staging.tfvars -var="openai_api_key=$OPENAI_API_KEY_STAGING"
+AWS_PROFILE=professional terraform apply -var-file=environments/production.tfvars -var="openai_api_key=$OPENAI_API_KEY_PRODUCTION"
 ```
 
 ### CI/CD automation
 GitHub Actions workflows:
 - `/.github/workflows/ci.yml` (lint, typecheck, e2e)
-- `/.github/workflows/deploy-staging.yml` (push to `master` or manual)
-- `/.github/workflows/deploy-production.yml` (tag `v*` or manual)
+- `/.github/workflows/deploy-staging.yml` (push to `staging` -> deploy staging -> smoke/stability -> acceptance -> auto-promote production)
+- `/.github/workflows/deploy-production.yml` (manual emergency production deploy only)
 - OIDC setup reference: `/Users/ben/Github/lloyds/infra/aws/github-oidc.md`
 
 ECS deployment helper script:
@@ -132,6 +142,12 @@ Current workflows are prewired with environment constants and OIDC role ARNs:
 - Production role: `arn:aws:iam::752725527807:role/lloyds-production-github-actions`
 
 No additional GitHub repository variables/secrets are required for deploys.
+
+## Standard release flow (agents)
+1. Implement and validate locally (`lint`, `typecheck`, `e2e`).
+2. Merge/push to `staging`.
+3. Watch `deploy-staging.yml` complete all gates.
+4. Let automatic promotion deploy production after staging stability and acceptance checks pass.
 
 ## Notes for future agents
 - Treat `/docs/agent-plan.md` as a living checklist.

@@ -36,7 +36,7 @@ export default async function ManifestoPage({ searchParams }: ManifestoPageProps
         <p>No access without principled consent.</p>
       </header>
 
-      <div className="panel manifesto">
+      <div className="panel manifesto manifesto-with-form">
         <div className="manifesto-copy">
           <h2>{manifestoTitle}</h2>
           {manifestoParagraphs.map((paragraph) => (

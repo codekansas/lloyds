@@ -51,6 +51,7 @@ flowchart LR
 ### Feed and Content
 - `FeedSource`: curated/global/user-linked RSS source registry.
 - `Post`: normalized item metadata, submission channel, summary status, summary bullets.
+- `PostComment`: user-authored comments linked to feed posts.
 - Optional future:
   - `PostTag`
   - `ModerationEvent`
@@ -68,8 +69,9 @@ flowchart LR
 1. Manifesto gate (blocking).
 2. Feed home (AI summaries first, then article links).
 3. Post submission (anonymized in UI).
-4. Profile editor (deep free-form identity + blog feed URL).
-5. Matching page (availability + locations + generated matches).
+4. Feed comments for contextual discussion on items.
+5. Profile editor (deep free-form identity + blog feed URL).
+6. Matching page (availability + locations + generated matches).
 
 ## 7) Critical Flows
 ### 7.1 Manifesto Flow
@@ -156,6 +158,7 @@ flowchart LR
 ## 13) Definition of Done for MVP
 - Auth + manifesto gating functional.
 - Feed shows RSS + user-submitted posts with AI summaries.
+- Feed supports comments on posts.
 - No karma and no submitter attribution in feed UI.
 - Profile includes long-form text and blog feed URL.
 - Availability capture and match generation functional.

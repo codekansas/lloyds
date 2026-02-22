@@ -61,6 +61,7 @@ model User {
   accounts            Account[]
   sessions            Session[]
   authoredPosts       Post[]          @relation("PostSubmittedBy")
+  authoredComments    PostComment[]   @relation("PostCommentAuthor")
   availabilities      Availability[]
   profileSignals      ProfileSignal[]
   matchesAsA          Match[]         @relation("MatchUserA")
@@ -149,11 +150,26 @@ model Post {
   submittedBy        User?          @relation("PostSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
   feedSource         FeedSource?    @relation(fields: [feedSourceId], references: [id], onDelete: SetNull)
   profileSignals     ProfileSignal[]
+  comments           PostComment[]
 
   @@index([publishedAt])
   @@index([createdAt])
   @@index([summaryStatus, createdAt])
   @@index([feedSourceId])
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation("PostCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([authorId, createdAt])
 }
 
 model ProfileSignal {

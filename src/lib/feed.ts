@@ -34,6 +34,17 @@ export const getRankedFeedPosts = async (limit = 40) => {
           name: true,
         },
       },
+      comments: {
+        orderBy: [{ createdAt: "desc" }],
+        take: 5,
+        include: {
+          author: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
 

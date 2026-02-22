@@ -1,9 +1,6 @@
-name: Deploy Production
+name: Manual Deploy Production
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 permissions:

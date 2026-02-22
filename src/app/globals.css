@@ -278,6 +278,11 @@ button {
   gap: 0.75rem;
 }
 
+.feed-card-header {
+  display: grid;
+  gap: 0.55rem;
+}
+
 .feed-card-header h2 {
   margin: 0;
   line-height: 1.2;
@@ -305,7 +310,7 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   border: 1px solid var(--line);
-  padding: 0.18rem 0.38rem;
+  padding: 0.24rem 0.44rem;
   background: rgba(255, 255, 255, 0.52);
 }
 
@@ -345,6 +350,58 @@ button {
   margin: 0.45rem 0 0;
 }
 
+.feed-comments {
+  border-top: 1px dashed var(--line);
+  padding-top: 0.7rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.feed-comments-title {
+  margin: 0;
+  font-family: var(--font-utility), monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.feed-comments-empty {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.feed-comments-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.feed-comments-list li {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.feed-comments-list li p {
+  margin: 0;
+}
+
+.feed-comments-list li span {
+  font-family: var(--font-utility), monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.feed-comment-form {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.feed-comment-form textarea {
+  min-height: 5.5rem;
+}
+
 .manifesto p {
   margin: 0;
   font-size: 1.11rem;
@@ -359,6 +416,20 @@ button {
 .manifesto-copy {
   display: grid;
   gap: 0.9rem;
+}
+
+.home-entry-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.home-entry-panel h2,
+.home-entry-panel p {
+  margin: 0;
+}
+
+.home-entry-panel .form-grid {
+  margin-top: 0.25rem;
 }
 
 .manifesto-tenets {
@@ -438,7 +509,7 @@ a {
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   }
 
-  .manifesto {
+  .manifesto-with-form {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
     align-items: start;
   }
