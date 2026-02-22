@@ -10,6 +10,7 @@ process.env.DATABASE_URL = databaseUrl;
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["**/staging/**"],
   fullyParallel: false,
   workers: 1,
   timeout: 90_000,

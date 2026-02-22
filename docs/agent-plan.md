@@ -12,6 +12,7 @@ This file is the execution contract for future agents. Update statuses and decis
 - [x] Add Playwright end-to-end coverage for core member journeys.
 - [x] Add AWS ECS/ECR/Route53/ACM/EventBridge deployment scaffolding.
 - [x] Configure production database and secrets in deployment environment.
+- [x] Add staged release pipeline with staging smoke checks, acceptance gates, and automatic production promotion.
 - [ ] Add baseline observability (error tracking + request/job logging).
 - [ ] Add rate limits to write-heavy endpoints.
 
@@ -58,3 +59,4 @@ This file is the execution contract for future agents. Update statuses and decis
 - 2026-02-22: Chose Next.js + Prisma + Auth.js + Vercel Cron for initial MVP velocity.
 - 2026-02-22: Pivoted deployment architecture to AWS-native stack (ECS Fargate, ECR, Route53, ACM, EventBridge + Lambda cron triggers) with staging and production environments.
 - 2026-02-22: Completed AWS bootstrap/apply for staging + production, deployed live services to `cafestaging.bolte.cc` and `cafe.bolte.cc`, and created GitHub OIDC deploy roles for `master`/`v*` automation.
+- 2026-02-22: Switched release policy to staged branch promotion with smoke checks against staging, full acceptance gates, and immutable-image auto-promotion to production.

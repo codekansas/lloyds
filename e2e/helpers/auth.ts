@@ -35,7 +35,6 @@ export const loginAsUser = async (
       name: "authjs.session-token",
       value: session.sessionToken,
       url: options.baseUrl,
-      path: "/",
       httpOnly: true,
       secure: false,
       sameSite: "Lax",

@@ -412,6 +412,7 @@ resource "aws_ecs_task_definition" "app" {
       ]
       environment = [
         { name = "NODE_ENV", value = "production" },
+        { name = "APP_ENV", value = var.environment },
         { name = "AUTH_TRUST_HOST", value = "true" },
         { name = "AUTH_URL", value = "https://${var.domain_name}" },
         { name = "NEXTAUTH_URL", value = "https://${var.domain_name}" },

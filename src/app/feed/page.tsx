@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 
+import { addPostCommentAction } from "@/actions/comment";
 import { Flash } from "@/components/flash";
 import { FeedPostCard } from "@/components/feed-post-card";
 import { requireManifestoUser } from "@/lib/auth-guards";
@@ -10,6 +11,11 @@ import { ensureCuratedFeedSources } from "@/lib/seed-curated";
 
 type FeedPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const commentErrorCopy: Record<string, string> = {
+  "invalid-input": "Comment must be between 2 and 1000 characters.",
+  "post-not-found": "Unable to find that post. Please refresh and try again.",
 };
 
 const parseBullets = (value: Prisma.JsonValue | null): string[] => {
@@ -40,6 +46,8 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   ]);
 
   const submitted = query.submitted === "1";
+  const commented = query.commented === "1";
+  const commentError = typeof query.commentError === "string" ? query.commentError : "";
 
   return (
     <section className="lloyds-page">
@@ -52,6 +60,8 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
       <div className="split-grid">
         <div className="lloyds-page">
           {submitted ? <Flash tone="success" message="Submission accepted. Summary generation queued." /> : null}
+          {commented ? <Flash tone="success" message="Comment posted." /> : null}
+          {commentErrorCopy[commentError] ? <Flash tone="error" message={commentErrorCopy[commentError]} /> : null}
 
           <div className="stats-row">
             <span>{feedPosts.length} ranked posts</span>
@@ -74,6 +84,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
               feedPosts.map((post) => (
                 <FeedPostCard
                   key={post.id}
+                  postId={post.id}
                   title={post.title}
                   url={post.url}
                   domain={post.domain}
@@ -83,6 +94,13 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
                   summaryReadSeconds={post.summaryReadSeconds}
                   summaryStatus={post.summaryStatus}
                   excerpt={post.excerpt}
+                  comments={post.comments.map((comment) => ({
+                    id: comment.id,
+                    content: comment.content,
+                    createdAt: comment.createdAt,
+                    authorName: comment.author.name,
+                  }))}
+                  onCommentSubmit={addPostCommentAction}
                 />
               ))
             )}

@@ -41,6 +41,7 @@ type SeedAvailabilityInput = {
 export const resetDatabase = async (): Promise<void> => {
   await prisma.match.deleteMany();
   await prisma.availability.deleteMany();
+  await prisma.postComment.deleteMany();
   await prisma.profileSignal.deleteMany();
   await prisma.post.deleteMany();
   await prisma.feedSource.deleteMany();

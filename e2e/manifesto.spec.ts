@@ -6,7 +6,7 @@ test("redirects guests away from protected routes", async ({ page }) => {
   await page.goto("/feed");
 
   await expect(page).toHaveURL(/\/?\?next=%2Ffeed/);
-  await expect(page.getByRole("heading", { name: "Lloyd's Coffee House" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lloyd's Coffee House", exact: true })).toBeVisible();
   await expect(page.getByText("Sign in with a standard provider.")).toBeVisible();
 });
 

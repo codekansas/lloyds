@@ -24,18 +24,19 @@ This stack provisions one environment (`staging` or `production`) for Lloyd's Co
 ```bash
 cd infra/aws/terraform
 AWS_PROFILE=professional terraform init
-AWS_PROFILE=professional terraform apply -var-file=environments/staging.tfvars
+AWS_PROFILE=professional terraform apply -var-file=environments/staging.tfvars -var="openai_api_key=$OPENAI_API_KEY_STAGING"
 ```
 
 ## Apply production
 ```bash
 cd infra/aws/terraform
 AWS_PROFILE=professional terraform init
-AWS_PROFILE=professional terraform apply -var-file=environments/production.tfvars
+AWS_PROFILE=professional terraform apply -var-file=environments/production.tfvars -var="openai_api_key=$OPENAI_API_KEY_PRODUCTION"
 ```
 
 ## Notes
 - Replace `auth_secret` and `cron_secret` placeholders in tfvars before apply.
+- Pass environment-specific OpenAI API keys at apply time via `-var="openai_api_key=..."` (recommended) instead of committing secrets in tfvars.
 - OAuth provider IDs/secrets are optional in Terraform, but required for social login in the app.
 - The stack currently assumes default VPC/subnets; move to dedicated private networking in a later hardening pass.
 - ECS task definitions read secrets from Secrets Manager, including `DATABASE_URL`, `AUTH_SECRET`, and `CRON_SECRET`.

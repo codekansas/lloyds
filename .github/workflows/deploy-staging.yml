@@ -1,9 +1,9 @@
-name: Deploy Staging
+name: Staging Release Pipeline
 
 on:
   push:
     branches:
-      - master
+      - staging
   workflow_dispatch:
 
 permissions:
@@ -12,36 +12,49 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  AWS_ROLE_ARN: arn:aws:iam::752725527807:role/lloyds-staging-github-actions
-  ECR_REPOSITORY_URL: 752725527807.dkr.ecr.us-east-1.amazonaws.com/lloyds-staging
-  ECS_CLUSTER: lloyds-staging-cluster
-  ECS_SERVICE: lloyds-staging
-  ECS_CONTAINER_NAME: lloyds-staging
+  STAGING_BASE_URL: https://cafestaging.bolte.cc
+  STAGING_AWS_ROLE_ARN: arn:aws:iam::752725527807:role/lloyds-staging-github-actions
+  STAGING_ECR_REPOSITORY_URL: 752725527807.dkr.ecr.us-east-1.amazonaws.com/lloyds-staging
+  STAGING_ECS_CLUSTER: lloyds-staging-cluster
+  STAGING_ECS_SERVICE: lloyds-staging
+  STAGING_ECS_CONTAINER_NAME: lloyds-staging
+  PRODUCTION_AWS_ROLE_ARN: arn:aws:iam::752725527807:role/lloyds-production-github-actions
+  PRODUCTION_ECR_REPOSITORY_URL: 752725527807.dkr.ecr.us-east-1.amazonaws.com/lloyds-production
+  PRODUCTION_ECS_CLUSTER: lloyds-production-cluster
+  PRODUCTION_ECS_SERVICE: lloyds-production
+  PRODUCTION_ECS_CONTAINER_NAME: lloyds-production
+
+concurrency:
+  group: staging-release
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  deploy_staging:
     runs-on: ubuntu-latest
     environment: staging
+    outputs:
+      image_tag: ${{ steps.image.outputs.image_tag }}
+      image_uri: ${{ steps.image.outputs.image_uri }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure staging AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.STAGING_AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to ECR
+      - name: Login to staging ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push image
+      - name: Build and push staging image
         id: image
         run: |
           IMAGE_TAG="${GITHUB_SHA::12}"
-          IMAGE_URI="${{ env.ECR_REPOSITORY_URL }}:${IMAGE_TAG}"
-          IMAGE_LATEST="${{ env.ECR_REPOSITORY_URL }}:latest"
+          IMAGE_URI="${{ env.STAGING_ECR_REPOSITORY_URL }}:${IMAGE_TAG}"
+          IMAGE_LATEST="${{ env.STAGING_ECR_REPOSITORY_URL }}:latest"
 
           docker build --platform linux/amd64 -t "$IMAGE_URI" .
           docker tag "$IMAGE_URI" "$IMAGE_LATEST"
@@ -49,13 +62,167 @@ jobs:
           docker push "$IMAGE_URI"
           docker push "$IMAGE_LATEST"
 
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy to ECS service
+      - name: Deploy to staging ECS service
         run: scripts/aws/deploy-ecs.sh
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
-          ECS_CLUSTER: ${{ env.ECS_CLUSTER }}
-          ECS_SERVICE: ${{ env.ECS_SERVICE }}
-          ECS_CONTAINER_NAME: ${{ env.ECS_CONTAINER_NAME }}
+          ECS_CLUSTER: ${{ env.STAGING_ECS_CLUSTER }}
+          ECS_SERVICE: ${{ env.STAGING_ECS_SERVICE }}
+          ECS_CONTAINER_NAME: ${{ env.STAGING_ECS_CONTAINER_NAME }}
           IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+
+  smoke_staging:
+    runs-on: ubuntu-latest
+    needs: deploy_staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run staging smoke tests
+        run: npm run e2e:smoke
+        env:
+          STAGING_BASE_URL: ${{ env.STAGING_BASE_URL }}
+
+      - name: Monitor staging health stability window
+        run: |
+          for attempt in {1..6}; do
+            response="$(curl --fail --silent --show-error "${{ env.STAGING_BASE_URL }}/api/health")"
+            echo "Health check ${attempt}: $response"
+            echo "$response" | grep -q '"status":"ok"'
+            sleep 30
+          done
+
+  acceptance_staging:
+    runs-on: ubuntu-latest
+    needs: smoke_staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run staging acceptance tests
+        run: npm run e2e:staging-acceptance
+        env:
+          STAGING_BASE_URL: ${{ env.STAGING_BASE_URL }}
+
+  acceptance_full:
+    runs-on: ubuntu-latest
+    needs: smoke_staging
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: lloyds_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lloyds_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lloyds_test?schema=public
+      AUTH_SECRET: ci-auth-secret-please-rotate
+      AUTH_TRUST_HOST: true
+      GOOGLE_CLIENT_ID: ci-google-client-id
+      GOOGLE_CLIENT_SECRET: ci-google-client-secret
+      GITHUB_CLIENT_ID: ci-github-client-id
+      GITHUB_CLIENT_SECRET: ci-github-client-secret
+      CRON_SECRET: ci-cron-secret-please-rotate
+      E2E_TEST_MODE: true
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3001
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Apply Prisma schema
+        run: npm run prisma:push
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run full acceptance suite
+        run: npm run e2e
+
+  promote_production:
+    runs-on: ubuntu-latest
+    needs:
+      - deploy_staging
+      - acceptance_staging
+      - acceptance_full
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure production AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.PRODUCTION_AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Promote image from staging ECR to production ECR
+        run: scripts/aws/promote-ecr-image.sh
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          SOURCE_ECR_REPOSITORY_URL: ${{ env.STAGING_ECR_REPOSITORY_URL }}
+          TARGET_ECR_REPOSITORY_URL: ${{ env.PRODUCTION_ECR_REPOSITORY_URL }}
+          IMAGE_TAG: ${{ needs.deploy_staging.outputs.image_tag }}
+
+      - name: Deploy promoted image to production ECS service
+        run: scripts/aws/deploy-ecs.sh
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          ECS_CLUSTER: ${{ env.PRODUCTION_ECS_CLUSTER }}
+          ECS_SERVICE: ${{ env.PRODUCTION_ECS_SERVICE }}
+          ECS_CONTAINER_NAME: ${{ env.PRODUCTION_ECS_CONTAINER_NAME }}
+          IMAGE_URI: ${{ env.PRODUCTION_ECR_REPOSITORY_URL }}:${{ needs.deploy_staging.outputs.image_tag }}

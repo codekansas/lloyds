@@ -13,8 +13,8 @@ Use the `professional` profile for local applies:
 ```bash
 cd infra/aws/terraform
 AWS_PROFILE=professional terraform init
-AWS_PROFILE=professional terraform plan -var-file=environments/staging.tfvars
-AWS_PROFILE=professional terraform apply -var-file=environments/staging.tfvars
+AWS_PROFILE=professional terraform plan -var-file=environments/staging.tfvars -var="openai_api_key=$OPENAI_API_KEY_STAGING"
+AWS_PROFILE=professional terraform apply -var-file=environments/staging.tfvars -var="openai_api_key=$OPENAI_API_KEY_STAGING"
 ```
 
 ## Deployment flow
@@ -25,11 +25,12 @@ AWS_PROFILE=professional terraform apply -var-file=environments/staging.tfvars
 
 Script used by CI/CD:
 - `/Users/ben/Github/lloyds/scripts/aws/deploy-ecs.sh`
+- `/Users/ben/Github/lloyds/scripts/aws/promote-ecr-image.sh`
 
 ## GitHub automation
 - `ci.yml`: lint, typecheck, and Playwright E2E.
-- `deploy-staging.yml`: auto deploy on push to `master`.
-- `deploy-production.yml`: deploy on `v*` tags (or manual dispatch).
+- `deploy-staging.yml`: push to `staging` deploys staging, runs smoke + acceptance gates, and auto-promotes to production.
+- `deploy-production.yml`: manual emergency production deploy (workflow dispatch only).
 - OIDC roles in AWS:
   - `arn:aws:iam::752725527807:role/lloyds-staging-github-actions`
   - `arn:aws:iam::752725527807:role/lloyds-production-github-actions`
