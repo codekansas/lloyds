@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bodoni_Moda, Cormorant_Garamond, IBM_Plex_Mono } from "next/font/google";
 
 import { auth } from "@/auth";
@@ -28,6 +28,9 @@ export const metadata: Metadata = {
   title: "Lloyd's Coffee House",
   description:
     "An AI-powered coffee house for high-agency thinkers: curated long-form intelligence and meaningful matching.",
+};
+
+export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f3ebd8" },
     { media: "(prefers-color-scheme: dark)", color: "#120d09" },
