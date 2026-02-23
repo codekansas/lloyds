@@ -21,7 +21,7 @@ This guide is the default operating procedure for future agents.
 
 1. Merge feature work into `master`.
 2. Push `master` to GitHub.
-3. GitHub Actions workflow `/.github/workflows/deploy-staging.yml` runs automatically.
+3. After `/.github/workflows/ci.yml` passes, `/.github/workflows/deploy.yml` runs automatically.
 
 ## 3. Automated staging-to-production pipeline
 

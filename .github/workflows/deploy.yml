@@ -1,7 +1,11 @@
-name: Staging Release Pipeline
+name: Deploy Pipeline
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
     branches:
       - master
   workflow_dispatch:
@@ -12,6 +16,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
+  RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
   STAGING_BASE_URL: https://cafestaging.bolte.cc
   STAGING_AWS_ROLE_ARN: arn:aws:iam::752725527807:role/lloyds-staging-github-actions
   STAGING_ECR_REPOSITORY_URL: 752725527807.dkr.ecr.us-east-1.amazonaws.com/lloyds-staging
@@ -25,11 +30,12 @@ env:
   PRODUCTION_ECS_CONTAINER_NAME: lloyds-production
 
 concurrency:
-  group: staging-release
+  group: deploy-release
   cancel-in-progress: false
 
 jobs:
   deploy_staging:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: staging
     outputs:
@@ -39,6 +45,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Configure staging AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -52,7 +60,7 @@ jobs:
       - name: Build and push staging image
         id: image
         run: |
-          IMAGE_TAG="${GITHUB_SHA::12}"
+          IMAGE_TAG="${RELEASE_SHA::12}"
           IMAGE_URI="${{ env.STAGING_ECR_REPOSITORY_URL }}:${IMAGE_TAG}"
           IMAGE_LATEST="${{ env.STAGING_ECR_REPOSITORY_URL }}:latest"
 
@@ -81,6 +89,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -121,6 +131,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -173,6 +185,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -209,6 +223,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Configure production AWS credentials
         uses: aws-actions/configure-aws-credentials@v4

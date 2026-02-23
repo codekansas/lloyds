@@ -141,7 +141,7 @@ AWS_PROFILE=professional terraform apply -var-file=environments/production.tfvar
 ### CI/CD automation
 GitHub Actions workflows:
 - `/.github/workflows/ci.yml` (lint, typecheck, e2e)
-- `/.github/workflows/deploy-staging.yml` (push to `master` -> deploy staging -> smoke/stability -> acceptance -> auto-promote production)
+- `/.github/workflows/deploy.yml` (CI success on `master` -> deploy staging -> smoke/stability -> acceptance -> auto-promote production)
 - `/.github/workflows/deploy-production.yml` (manual emergency production deploy only)
 - OIDC setup reference: `/Users/ben/Github/lloyds/infra/aws/github-oidc.md`
 
@@ -158,7 +158,7 @@ No additional GitHub repository variables/secrets are required for deploys.
 ## Standard release flow (agents)
 1. Implement and validate locally (`lint`, `typecheck`, `e2e`).
 2. Merge/push to `master`.
-3. Watch `deploy-staging.yml` complete all gates.
+3. Wait for `ci.yml` to pass, then watch `deploy.yml` complete all gates.
 4. Let automatic promotion deploy production after staging stability and acceptance checks pass.
 
 ## Notes for future agents
