@@ -9,9 +9,7 @@ const successfulFetchCacheTtlMs = 24 * 60 * 60 * 1000;
 const fallbackCacheTtlMs = 60 * 60 * 1000;
 
 export type CuratedFeedSeed = {
-  name: string;
   url: string;
-  description: string | null;
 };
 
 type CachedCuratedFeeds = {
@@ -105,15 +103,10 @@ const loadGistFileContent = async (fileReference: GistFileReference): Promise<st
 };
 
 const normalizeCuratedFeedEntry = (value: unknown): CuratedFeedSeed | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
+  const rawUrl =
+    typeof value === "string" ? value.trim() : isRecord(value) && typeof value.url === "string" ? value.url.trim() : "";
 
-  const rawName = typeof value.name === "string" ? value.name.trim() : "";
-  const rawUrl = typeof value.url === "string" ? value.url.trim() : "";
-  const rawDescription = typeof value.description === "string" ? value.description.trim() : "";
-
-  if (!rawName || !rawUrl) {
+  if (!rawUrl) {
     return null;
   }
 
@@ -126,9 +119,7 @@ const normalizeCuratedFeedEntry = (value: unknown): CuratedFeedSeed | null => {
   }
 
   return {
-    name: rawName,
     url: normalizedUrl,
-    description: rawDescription || null,
   };
 };
 
@@ -158,7 +149,7 @@ const parseCuratedFeeds = (rawContent: string): CuratedFeedSeed[] => {
     }
   }
 
-  return Array.from(dedupedFeeds.values());
+  return Array.from(dedupedFeeds.values()).sort((feedA, feedB) => feedA.url.localeCompare(feedB.url));
 };
 
 const fetchCuratedFeedsFromGist = async (): Promise<CuratedFeedSeed[]> => {
