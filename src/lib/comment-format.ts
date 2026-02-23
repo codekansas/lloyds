@@ -34,10 +34,10 @@ const htmlSanitizeOptions: sanitizeHtml.IOptions = {
   },
   allowedSchemes: ["http", "https", "mailto"],
   transformTags: {
-    a: sanitizeHtml.simpleTransform("a", {
-      rel: "noreferrer noopener",
-      target: "_blank",
-    }),
+    a: (_tagName, attribs) => {
+      const href = (attribs.href ?? "").trim();
+      return transformAnchorTag(href);
+    },
   },
 };
 
@@ -50,6 +50,28 @@ const markdownOptions: MarkedOptions = {
   gfm: true,
   breaks: true,
   async: false,
+};
+
+const commentReferencePattern = (): RegExp => /(^|[^\w])((?:>>|!))(\d{1,4})(?=$|[^\w])/g;
+
+const transformAnchorTag = (href: string): sanitizeHtml.Tag => {
+  if (href.startsWith("#comment-")) {
+    return {
+      tagName: "a",
+      attribs: {
+        href,
+      },
+    };
+  }
+
+  return {
+    tagName: "a",
+    attribs: {
+      href,
+      rel: "noreferrer noopener",
+      target: "_blank",
+    },
+  };
 };
 
 const parseMarkdown = (value: string): string => {
@@ -76,11 +98,15 @@ export const extractPlainTextFromHtml = (value: string): string => {
 export const renderCommentBodyHtml = ({
   content,
   format,
+  commentIdByNumber,
 }: {
   content: string;
   format: CommentFormatValue;
+  commentIdByNumber?: Map<number, string>;
 }): string => {
-  const rawHtml = format === "RICH_TEXT" ? content : parseMarkdown(content);
+  const markdownWithCommentLinks =
+    format === "MARKDOWN" ? replaceCommentReferencesWithLinks(content, commentIdByNumber) : content;
+  const rawHtml = format === "RICH_TEXT" ? content : parseMarkdown(markdownWithCommentLinks);
   return sanitizeCommentHtml(rawHtml);
 };
 
@@ -100,10 +126,10 @@ export const getCommentPlainText = ({
 
 export const extractCommentReferenceNumbers = (value: string): number[] => {
   const references = new Set<number>();
-  const matches = value.matchAll(/>>(\d{1,4})/g);
+  const matches = value.matchAll(commentReferencePattern());
 
   for (const match of matches) {
-    const parsed = Number.parseInt(match[1], 10);
+    const parsed = Number.parseInt(match[3], 10);
 
     if (Number.isInteger(parsed) && parsed > 0) {
       references.add(parsed);
@@ -111,4 +137,24 @@ export const extractCommentReferenceNumbers = (value: string): number[] => {
   }
 
   return [...references];
+};
+
+const replaceCommentReferencesWithLinks = (
+  value: string,
+  commentIdByNumber: Map<number, string> | undefined,
+): string => {
+  if (!commentIdByNumber || commentIdByNumber.size === 0) {
+    return value;
+  }
+
+  return value.replaceAll(commentReferencePattern(), (_fullMatch, prefix: string, marker: string, rawNumber: string) => {
+    const commentNumber = Number.parseInt(rawNumber, 10);
+    const commentId = commentIdByNumber.get(commentNumber);
+
+    if (!commentId) {
+      return `${prefix}${marker}${rawNumber}`;
+    }
+
+    return `${prefix}[${marker}${commentNumber}](#comment-${commentId})`;
+  });
 };

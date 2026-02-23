@@ -24,68 +24,98 @@ const fallbackConstitutionText = `# Lloyd's List Constitution
 
 Version 2026-02-23
 
-This constitution defines how article quality is judged in Lloyd's List. It exists to reward epistemic rigor, practical usefulness, and honest uncertainty while discouraging hype and empty rhetoric.
+This constitution defines how article quality is judged in Lloyd's List. Lloyd's List is a discovery engine for scientific, programming, engineering, and startup ideas. It rewards technical depth, novelty, and practical insight while discouraging hype, tribal framing, and low-signal discourse.
+
+## Editorial Scope
+
+Prioritize work that materially improves understanding in one or more of these areas:
+
+- Software engineering, programming languages, systems, databases, networking, security, and hardware.
+- AI/ML, data science, and computational methods with concrete technical detail.
+- Scientific and engineering analysis grounded in reproducible evidence.
+- Startup building, product execution, and company-building lessons with operational specifics.
+- Technical essays that introduce useful models, design patterns, or failure analyses.
+
+### Explicit Deprioritization
+
+Downrank content where politics, culture war, or ideological signaling is the primary payload and technical/scientific substance is secondary.
+
+- Pure political commentary, electoral speculation, outrage cycles, and partisan rhetoric should score low.
+- Policy or regulation posts are allowed only when they contain substantial technical or scientific analysis.
+- Social-media drama, personality feuds, and controversy farming should be treated as low quality.
 
 ## Core Principles
 
-1. Truth over virality.
+1. Technical depth over surface commentary.
 2. Evidence over assertion.
-3. Clarity over obscurity.
-4. Original thought over recycled consensus.
-5. Decision usefulness over entertainment value.
+3. Original insight over recycled consensus.
+4. Practical transfer over abstract posturing.
+5. Clarity over obscurity.
 6. Honest uncertainty over false certainty.
-7. Civil disagreement over tribal signaling.
+7. Signal density over hot takes.
 
 ## Rating Criteria
 
 Evaluate every article on these dimensions:
 
-- Evidence quality: cited data, direct sources, reproducibility, and distinction between facts and speculation.
-- Reasoning quality: explicit assumptions, causal logic, steelmanning, and handling of counterarguments.
-- Informational value: novelty, synthesis quality, and whether the reader learns something consequential.
-- Practical value: decision relevance, concrete takeaways, and transferability to real-world choices.
-- Epistemic conduct: calibrated confidence, transparency about uncertainty, and avoidance of manipulative framing.
+- Technical depth: level of detail, mechanism explanation, and whether claims survive expert scrutiny.
+- Novelty and insight: genuinely new ideas, non-obvious synthesis, or meaningful contrarian analysis.
+- Evidence quality: cited data, experiments, benchmarks, primary sources, and reproducibility.
+- Reasoning quality: explicit assumptions, causal structure, alternatives considered, and counterexample handling.
+- Practical value: concrete lessons a serious builder/researcher can apply to decisions or implementation.
+- Epistemic conduct: calibrated confidence, uncertainty disclosure, and correction of limitations.
 - Writing quality: coherence, precision, and ratio of signal to filler.
 
 ## Penalties
 
 Downgrade heavily for:
 
-- Clickbait framing or outrage bait.
+- Politics-first or ideology-first framing with weak technical substance.
+- Clickbait framing, outrage bait, or controversy farming.
 - Unverifiable claims presented as facts.
 - Sweeping conclusions with weak or missing evidence.
-- Ideological one-sidedness that ignores plausible alternatives.
+- Generic summaries that avoid mechanism-level detail.
+- Repackaged consensus with little new understanding.
 - Excessive self-promotion, affiliate spam, or engagement farming.
 - AI slop patterns: generic platitudes, shallow summaries, and no concrete argument.
+
+## Bonuses
+
+Upgrade when present:
+
+- New mental models, original experiments, or benchmark-backed conclusions.
+- Code-level, architectural, mathematical, or scientific detail that increases transferability.
+- Clear treatment of tradeoffs, failure modes, and operational constraints.
+- Durable insights likely to remain useful beyond a short news cycle.
 
 ## Quality Scale
 
 Pick exactly one rating:
 
 1. Common Rumour
-  - Mostly unverified, derivative, or speculative.
-  - Weak sourcing and low decision value.
-  - May still be worth tracking as weak signal.
+   - Mostly shallow, derivative, speculative, or politics-driven.
+   - Little technical evidence or reusable insight.
+   - Weak signal, mainly for awareness.
 
 2. Merchant's Word
-  - Plausible and somewhat useful, but limited depth.
-  - Partial evidence and moderate rigor.
-  - Useful for orientation, not for high-stakes decisions.
+   - Plausible and somewhat useful, but limited technical depth.
+   - Partial evidence with modest novelty.
+   - Useful for orientation, not implementation.
 
 3. Captain's Account
-  - Clear thesis, credible evidence, and practical insights.
-  - Good faith treatment of uncertainty and alternatives.
-  - Reliable basis for discussion and medium-stakes decisions.
+   - Clear thesis, credible evidence, and meaningful technical discussion.
+   - Demonstrates reasonable novelty or synthesis.
+   - Reliable for discussion and medium-stakes decisions.
 
 4. Underwriter's Confidence
-  - Strong sourcing, disciplined reasoning, and high signal density.
-  - Materially improves a serious reader's models or decisions.
-  - Suitable for high-stakes strategic consideration.
+   - Strong sourcing, disciplined reasoning, and dense technical signal.
+   - Materially improves expert mental models or implementation decisions.
+   - Suitable for high-stakes technical or strategic use.
 
 5. The Lloyd's Assurance
-  - Exceptional rigor, originality, and practical consequence.
-  - Stands up to adversarial scrutiny and remains useful over time.
-  - Rare benchmark-quality analysis.
+   - Exceptional rigor, originality, and practical consequence.
+   - Introduces or validates ideas that meaningfully advance the field.
+   - Stands up to adversarial scrutiny and remains durable over time.
 
 ## Distribution Targets
 
@@ -104,8 +134,9 @@ Do not force quotas in a tiny batch. Use these targets for calibration when unce
 When rating an article, provide:
 
 - One rating from the five-level scale.
-- A short rationale tied to evidence, reasoning, and practical value.
+- A short rationale tied to technical depth, novelty, evidence quality, and practical value.
 - No mention of popularity metrics (karma, likes, shares) as quality evidence.
+- If relevant, note that politics-first framing reduced the score due to poor technical focus.
 `;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {

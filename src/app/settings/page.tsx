@@ -8,6 +8,7 @@ import { Flash } from "@/components/flash";
 import { requireManifestoUser } from "@/lib/auth-guards";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { hasSearchFlag, readSearchParam } from "@/lib/search-params";
 
 type SettingsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -52,9 +53,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     }),
   ]);
 
-  const errorKey = typeof query.error === "string" ? query.error : "";
-  const scheduleKey = typeof query.schedule === "string" ? query.schedule : "";
-  const googleConnected = query.google === "connected";
+  const errorKey = readSearchParam(query, "error");
+  const scheduleKey = readSearchParam(query, "schedule");
+  const googleConnected = hasSearchFlag(query, "google", "connected");
 
   const hasGoogleCalendarAccess = Boolean(
     googleAccount?.refresh_token && googleAccount.scope?.includes("calendar"),
@@ -113,10 +114,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             ) : (
               <div className="settings-schedule-list">
                 {schedules.map((schedule) => (
-                  <article className="settings-schedule-card" key={schedule.id}>
+                  <article className="lloyds-card settings-schedule-card" key={schedule.id}>
                     <div className="settings-schedule-header">
                       <h3>{schedule.label}</h3>
-                      {schedule.isActive ? <span className="status-pill">Active</span> : null}
+                      {schedule.isActive ? <span className="lloyds-pill status-pill">Active</span> : null}
                     </div>
                     <p>
                       <a href={schedule.bookingPageUrl} target="_blank" rel="noreferrer">

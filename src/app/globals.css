@@ -63,6 +63,12 @@
   --button-primary-hover-from: #1e1208;
   --button-primary-hover-to: #7a4a1b;
   --button-primary-text: #fff;
+  --surface-card-base: var(--surface-card);
+  --space-2xs: 0.28rem;
+  --space-xs: 0.4rem;
+  --space-sm: 0.55rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
 }
 
 @theme inline {
@@ -205,11 +211,24 @@ body {
   font-size: 0.72rem;
 }
 
-.panel {
+.lloyds-card,
+.panel,
+.feed-card,
+.settings-schedule-card,
+.match-card,
+.comment-card {
   border: 1px solid var(--line);
-  padding: 1rem;
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-panel);
+  padding: var(--card-padding, 1rem);
+  background: var(--card-surface, var(--surface-card-base));
+  box-shadow: var(--card-shadow, var(--shadow-panel));
+  display: grid;
+  gap: var(--card-gap, var(--space-md));
+}
+
+.panel {
+  --card-surface: var(--surface-panel);
+  --card-padding: 1rem;
+  --card-gap: var(--space-md);
 }
 
 .panel h2,
@@ -229,7 +248,7 @@ body {
 
 .form-grid {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-md);
 }
 
 label {
@@ -315,6 +334,26 @@ button {
   cursor: not-allowed;
 }
 
+.lloyds-label {
+  font-family: var(--font-utility), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.lloyds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  font-family: var(--font-utility), monospace;
+  font-size: var(--pill-font-size, 0.68rem);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--pill-border, var(--line));
+  background: var(--pill-surface, var(--surface-chip));
+  padding: var(--pill-padding-block, 0.2rem) var(--pill-padding-inline, 0.42rem);
+}
+
 .flash {
   margin: 0;
   border: 1px solid var(--line);
@@ -353,13 +392,10 @@ button {
 }
 
 .feed-window-pill {
-  font-family: var(--font-utility), monospace;
-  font-size: 0.66rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border: 1px solid var(--line);
-  background: var(--surface-panel);
-  padding: 0.22rem 0.46rem;
+  --pill-font-size: 0.66rem;
+  --pill-padding-block: 0.22rem;
+  --pill-padding-inline: 0.46rem;
+  --pill-surface: var(--surface-panel);
   text-decoration: none;
 }
 
@@ -368,16 +404,26 @@ button {
 }
 
 .feed-window-pill-active {
-  border-color: var(--line-accent);
-  background: var(--surface-accent-pill);
+  --pill-border: var(--line-accent);
+  --pill-surface: var(--surface-accent-pill);
+}
+
+.feed-pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.feed-pagination-disabled {
+  opacity: 0.7;
 }
 
 .feed-card {
-  border: 1px solid var(--line);
-  background: var(--surface-card);
-  padding: 0.9rem;
-  display: grid;
-  gap: 0.75rem;
+  --card-surface: var(--surface-card);
+  --card-padding: 0.9rem;
+  --card-gap: var(--space-md);
 }
 
 .feed-card-header {
@@ -406,41 +452,31 @@ button {
   flex-wrap: wrap;
 }
 
-.feed-card-meta span {
-  font-family: var(--font-utility), monospace;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border: 1px solid var(--line);
-  padding: 0.24rem 0.44rem;
-  background: var(--surface-chip);
+.quality-pill {
+  --pill-border: var(--line-accent);
 }
 
-.feed-card-meta .quality-pill {
-  border-color: var(--line-accent);
+.quality-pill-common_rumour {
+  --pill-surface: color-mix(in srgb, var(--surface-error) 55%, var(--surface-chip));
+  --pill-border: color-mix(in srgb, var(--line-error) 70%, var(--line));
 }
 
-.feed-card-meta .quality-pill-common_rumour {
-  background: color-mix(in srgb, var(--surface-error) 55%, var(--surface-chip));
-  border-color: color-mix(in srgb, var(--line-error) 70%, var(--line));
+.quality-pill-merchants_word {
+  --pill-surface: color-mix(in srgb, var(--surface-accent-pill) 45%, var(--surface-chip));
 }
 
-.feed-card-meta .quality-pill-merchants_word {
-  background: color-mix(in srgb, var(--surface-accent-pill) 45%, var(--surface-chip));
+.quality-pill-captains_account {
+  --pill-surface: color-mix(in srgb, var(--surface-info) 52%, var(--surface-chip));
 }
 
-.feed-card-meta .quality-pill-captains_account {
-  background: color-mix(in srgb, var(--surface-info) 52%, var(--surface-chip));
+.quality-pill-underwriters_confidence {
+  --pill-surface: color-mix(in srgb, var(--surface-success) 55%, var(--surface-chip));
+  --pill-border: color-mix(in srgb, var(--line-success) 65%, var(--line));
 }
 
-.feed-card-meta .quality-pill-underwriters_confidence {
-  background: color-mix(in srgb, var(--surface-success) 55%, var(--surface-chip));
-  border-color: color-mix(in srgb, var(--line-success) 65%, var(--line));
-}
-
-.feed-card-meta .quality-pill-lloyds_assurance {
-  background: color-mix(in srgb, var(--surface-accent-pill) 70%, var(--surface-chip));
-  border-color: color-mix(in srgb, var(--line-accent) 70%, var(--line));
+.quality-pill-lloyds_assurance {
+  --pill-surface: color-mix(in srgb, var(--surface-accent-pill) 70%, var(--surface-chip));
+  --pill-border: color-mix(in srgb, var(--line-accent) 70%, var(--line));
 }
 
 .feed-summary {
@@ -456,16 +492,11 @@ button {
 }
 
 .feed-summary-title strong {
-  font-family: var(--font-utility), monospace;
   font-size: 0.72rem;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
 }
 
 .feed-summary-title span {
-  font-family: var(--font-utility), monospace;
   font-size: 0.68rem;
-  text-transform: uppercase;
 }
 
 .feed-summary ul {
@@ -551,16 +582,6 @@ button {
   flex-wrap: wrap;
 }
 
-.feed-comments-page-meta span {
-  font-family: var(--font-utility), monospace;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border: 1px solid var(--line);
-  padding: 0.24rem 0.44rem;
-  background: var(--surface-chip);
-}
-
 .feed-comments-page-actions {
   display: flex;
   gap: 0.55rem;
@@ -582,11 +603,7 @@ button {
 
 .feed-comments-tip {
   margin: 0;
-  font-family: var(--font-utility), monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   font-size: 0.68rem;
-  color: var(--ink-soft);
 }
 
 .comment-lattice {
@@ -602,11 +619,10 @@ button {
 }
 
 .comment-card {
-  border: 1px solid var(--line);
-  background: var(--surface-comment-card);
-  padding: 0.72rem;
-  display: grid;
-  gap: 0.55rem;
+  --card-surface: var(--surface-comment-card);
+  --card-padding: 0.72rem;
+  --card-gap: 0.55rem;
+  --card-shadow: none;
   position: relative;
 }
 
@@ -628,14 +644,14 @@ button {
 
 .comment-anchor {
   text-decoration: none;
-  border: 1px solid var(--line);
-  padding: 0.15rem 0.32rem;
+  --pill-surface: var(--surface-comment-anchor);
+  --pill-padding-block: 0.15rem;
+  --pill-padding-inline: 0.32rem;
   color: var(--ink);
-  background: var(--surface-comment-anchor);
 }
 
 .comment-anchor:hover {
-  border-color: var(--line-accent-strong);
+  --pill-border: var(--line-accent-strong);
 }
 
 .comment-link-row {
@@ -646,29 +662,23 @@ button {
 }
 
 .comment-link-row strong {
-  font-family: var(--font-utility), monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   font-size: 0.64rem;
-  color: var(--ink-soft);
 }
 
 .comment-ref-chip {
   position: relative;
-  display: inline-flex;
+  --pill-border: var(--line-accent);
+  --pill-surface: var(--surface-accent-soft);
+  --pill-padding-block: 0.1rem;
+  --pill-padding-inline: 0.42rem;
   text-decoration: none;
-  border: 1px solid var(--line-accent);
-  background: var(--surface-accent-soft);
   color: var(--ink);
   border-radius: 999px;
-  padding: 0.1rem 0.42rem;
-  font-family: var(--font-utility), monospace;
-  font-size: 0.68rem;
 }
 
 .comment-ref-chip:hover {
-  border-color: var(--line-accent-stronger);
-  background: var(--surface-accent);
+  --pill-border: var(--line-accent-stronger);
+  --pill-surface: var(--surface-accent);
 }
 
 .comment-ref-tooltip {
@@ -749,6 +759,26 @@ button {
   color: var(--accent);
 }
 
+.comment-body a[href^="#comment-"] {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  border: 1px solid var(--line-accent);
+  border-radius: 999px;
+  background: var(--surface-accent-soft);
+  color: var(--ink);
+  font-family: var(--font-utility), monospace;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  padding: 0.08rem 0.38rem;
+}
+
+.comment-body a[href^="#comment-"]:hover,
+.comment-body a[href^="#comment-"]:focus-visible {
+  border-color: var(--line-accent-stronger);
+  background: var(--surface-accent);
+}
+
 .feed-comments-compose-panel {
   display: grid;
   gap: 0.7rem;
@@ -772,11 +802,7 @@ button {
 }
 
 .comment-compose-header strong {
-  font-family: var(--font-utility), monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   font-size: 0.68rem;
-  color: var(--ink-soft);
 }
 
 .comment-format-toggle {
@@ -814,20 +840,15 @@ button {
 }
 
 .comment-parent-pill-row span {
-  font-family: var(--font-utility), monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   font-size: 0.64rem;
-  color: var(--ink-soft);
 }
 
 .comment-parent-pill {
-  border: 1px solid var(--line-accent);
-  background: var(--surface-accent-pill);
+  --pill-border: var(--line-accent);
+  --pill-surface: var(--surface-accent-pill);
+  --pill-padding-block: 0.13rem;
+  --pill-padding-inline: 0.42rem;
   border-radius: 999px;
-  padding: 0.13rem 0.42rem;
-  font-family: var(--font-utility), monospace;
-  font-size: 0.68rem;
   cursor: pointer;
 }
 
@@ -1049,15 +1070,6 @@ button {
   gap: 0.45rem;
 }
 
-.stats-row span {
-  font-family: var(--font-utility), monospace;
-  font-size: 0.68rem;
-  border: 1px solid var(--line);
-  padding: 0.18rem 0.38rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
 .list-clean {
   margin: 0;
   padding-left: 0;
@@ -1085,11 +1097,9 @@ button {
 }
 
 .settings-schedule-card {
-  border: 1px solid var(--line);
-  background: var(--surface-settings-card);
-  padding: 0.75rem;
-  display: grid;
-  gap: 0.55rem;
+  --card-surface: var(--surface-settings-card);
+  --card-padding: 0.75rem;
+  --card-gap: 0.55rem;
 }
 
 .settings-schedule-header {
@@ -1112,22 +1122,18 @@ button {
 }
 
 .status-pill {
-  border: 1px solid var(--line-success-strong);
-  background: var(--surface-success);
+  --pill-border: var(--line-success-strong);
+  --pill-surface: var(--surface-success);
+  --pill-font-size: 0.66rem;
+  --pill-padding-block: 0.16rem;
+  --pill-padding-inline: 0.42rem;
   color: var(--ok);
-  font-family: var(--font-utility), monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.66rem;
-  padding: 0.16rem 0.42rem;
 }
 
 .match-card {
-  border: 1px solid var(--line);
-  background: var(--surface-match-card);
-  padding: 0.8rem;
-  display: grid;
-  gap: 0.45rem;
+  --card-surface: var(--surface-match-card);
+  --card-padding: 0.8rem;
+  --card-gap: 0.45rem;
 }
 
 .match-card h3 {

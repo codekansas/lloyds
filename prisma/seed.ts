@@ -5,6 +5,8 @@ import { curatedFeedSeeds } from "../src/lib/curated-feeds";
 const prisma = new PrismaClient();
 
 const main = async (): Promise<void> => {
+  const curatedUrls = curatedFeedSeeds.map((source) => source.url);
+
   for (const source of curatedFeedSeeds) {
     await prisma.feedSource.upsert({
       where: { url: source.url },
@@ -20,6 +22,18 @@ const main = async (): Promise<void> => {
       },
     });
   }
+
+  await prisma.feedSource.updateMany({
+    where: {
+      sourceType: "CURATED",
+      url: {
+        notIn: curatedUrls,
+      },
+    },
+    data: {
+      isActive: false,
+    },
+  });
 };
 
 main()

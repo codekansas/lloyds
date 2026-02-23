@@ -1,6 +1,7 @@
 import { formatDistanceToNow } from "date-fns";
 import type { ArticleQualityRating } from "@prisma/client";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { qualityLabelFromRating } from "@/lib/article-quality";
 
@@ -35,6 +36,63 @@ const buildExcerptPreview = (
   return {
     preview: `${normalizedExcerpt.slice(0, splitIdx).trimEnd()}...`,
     hidden: normalizedExcerpt.slice(splitIdx).trimStart(),
+  };
+};
+
+const buildSummaryContent = ({
+  summaryStatus,
+  summaryBullets,
+  excerpt,
+}: {
+  summaryStatus: "PENDING" | "COMPLETE" | "FAILED";
+  summaryBullets: string[];
+  excerpt: string | null;
+}): {
+  preview: ReactNode;
+  overflow: ReactNode | null;
+} => {
+  if (summaryStatus === "PENDING") {
+    return {
+      preview: <p>Summary in progress. Check back in under a minute.</p>,
+      overflow: null,
+    };
+  }
+
+  if (summaryStatus === "COMPLETE") {
+    if (summaryBullets.length === 0) {
+      return {
+        preview: <p>Summary unavailable for this item.</p>,
+        overflow: null,
+      };
+    }
+
+    const previewBullets = summaryBullets.slice(0, summaryPreviewBulletCount);
+    const hiddenBullets = summaryBullets.slice(summaryPreviewBulletCount);
+
+    return {
+      preview: (
+        <ul className="feed-summary-preview">
+          {previewBullets.map((bullet) => (
+            <li key={bullet}>{bullet}</li>
+          ))}
+        </ul>
+      ),
+      overflow:
+        hiddenBullets.length > 0 ? (
+          <ul>
+            {hiddenBullets.map((bullet) => (
+              <li key={bullet}>{bullet}</li>
+            ))}
+          </ul>
+        ) : null,
+    };
+  }
+
+  const excerptPreview = buildExcerptPreview(excerpt);
+
+  return {
+    preview: <p>{excerptPreview.preview}</p>,
+    overflow: excerptPreview.hidden ? <p>{excerptPreview.hidden}</p> : null,
   };
 };
 
@@ -74,22 +132,26 @@ export const FeedPostCard = ({
         addSuffix: true,
       })
     : "recently added";
-  const previewBullets = summaryBullets.slice(0, summaryPreviewBulletCount);
-  const hiddenBullets = summaryBullets.slice(summaryPreviewBulletCount);
-  const excerptPreview = buildExcerptPreview(excerpt);
+  const { preview: summaryPreview, overflow: summaryOverflow } = buildSummaryContent({
+    summaryStatus,
+    summaryBullets,
+    excerpt,
+  });
   const qualityLabel = qualityLabelFromRating(qualityRating);
-  const qualityClassName = qualityRating ? `quality-pill quality-pill-${qualityRating.toLowerCase()}` : "quality-pill";
+  const qualityClassName = qualityRating
+    ? `lloyds-pill quality-pill quality-pill-${qualityRating.toLowerCase()}`
+    : "lloyds-pill quality-pill";
 
   return (
-    <article className="feed-card" data-testid={`feed-post-${postId}`}>
+    <article className="lloyds-card feed-card" data-testid={`feed-post-${postId}`}>
       <header className="feed-card-header">
         <div className="feed-card-meta">
           <span className={qualityClassName} title={qualityRationale ?? undefined}>
             {qualityLabel}
           </span>
-          <span>{sourceLabel}</span>
-          <span>{ageLabel}</span>
-          {domain ? <span>{domain}</span> : null}
+          <span className="lloyds-pill">{sourceLabel}</span>
+          <span className="lloyds-pill">{ageLabel}</span>
+          {domain ? <span className="lloyds-pill">{domain}</span> : null}
         </div>
         <h2>
           <a href={url} target="_blank" rel="noreferrer noopener">
@@ -100,51 +162,21 @@ export const FeedPostCard = ({
 
       <div className="feed-summary">
         <div className="feed-summary-title">
-          <strong>AI brief</strong>
-          {summaryReadSeconds ? <span>{summaryReadSeconds}s read</span> : null}
+          <strong className="lloyds-label">AI brief</strong>
+          {summaryReadSeconds ? <span className="lloyds-label">{summaryReadSeconds}s read</span> : null}
         </div>
 
-        {summaryStatus === "COMPLETE" ? (
-          summaryBullets.length > 0 ? (
-            <>
-              <ul className="feed-summary-preview">
-                {previewBullets.map((bullet) => (
-                  <li key={bullet}>{bullet}</li>
-                ))}
-              </ul>
-              {hiddenBullets.length > 0 ? (
-                <details className="feed-summary-more">
-                  <summary className="feed-toggle-button lloyds-button-secondary">
-                    <span className="feed-toggle-more">See more...</span>
-                    <span className="feed-toggle-less">Show less</span>
-                  </summary>
-                  <ul>
-                    {hiddenBullets.map((bullet) => (
-                      <li key={bullet}>{bullet}</li>
-                    ))}
-                  </ul>
-                </details>
-              ) : null}
-            </>
-          ) : (
-            <p>Summary unavailable for this item.</p>
-          )
-        ) : summaryStatus === "PENDING" ? (
-          <p>Summary in progress. Check back in under a minute.</p>
-        ) : excerptPreview.hidden ? (
-          <>
-            <p>{excerptPreview.preview}</p>
-            <details className="feed-summary-more">
-              <summary className="feed-toggle-button lloyds-button-secondary">
-                <span className="feed-toggle-more">See more...</span>
-                <span className="feed-toggle-less">Show less</span>
-              </summary>
-              <p>{excerptPreview.hidden}</p>
-            </details>
-          </>
-        ) : (
-          <p>{excerptPreview.preview}</p>
-        )}
+        {summaryPreview}
+
+        {summaryOverflow ? (
+          <details className="feed-summary-more">
+            <summary className="feed-toggle-button lloyds-button-secondary">
+              <span className="feed-toggle-more">See more...</span>
+              <span className="feed-toggle-less">Show less</span>
+            </summary>
+            {summaryOverflow}
+          </details>
+        ) : null}
       </div>
 
       <footer className="feed-card-actions">

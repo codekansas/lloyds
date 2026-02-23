@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { requireManifestoUser } from "@/lib/auth-guards";
@@ -48,18 +49,26 @@ export const submitPostAction = async (formData: FormData): Promise<void> => {
     redirect("/submit?error=already-exists");
   }
 
-  await prisma.post.create({
-    data: {
-      title: parsed.data.title.trim(),
-      url: parsed.data.url.trim(),
-      canonicalUrl,
-      domain,
-      excerpt: null,
-      sourceType: "USER_SUBMISSION",
-      submittedById: user.id,
-      summaryStatus: "PENDING",
-    },
-  });
+  try {
+    await prisma.post.create({
+      data: {
+        title: parsed.data.title.trim(),
+        url: parsed.data.url.trim(),
+        canonicalUrl,
+        domain,
+        excerpt: null,
+        sourceType: "USER_SUBMISSION",
+        submittedById: user.id,
+        summaryStatus: "PENDING",
+      },
+    });
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      redirect("/submit?error=already-exists");
+    }
+
+    throw error;
+  }
 
   revalidatePath("/feed");
   redirect("/feed?submitted=1");
