@@ -4,20 +4,15 @@ import Link from "next/link";
 import { Flash } from "@/components/flash";
 import { FeedPostCard } from "@/components/feed-post-card";
 import { requireManifestoUser } from "@/lib/auth-guards";
+import { getCommentErrorMessage } from "@/lib/comment-feedback";
 import { constitutionGistUrl } from "@/lib/constitution";
 import { getRankedFeedPosts, maxFeedDayOffset } from "@/lib/feed";
 import { prisma } from "@/lib/prisma";
-import { hasSearchFlag, readSearchParam } from "@/lib/search-params";
+import { hasSearchFlag, readSearchParam, readSearchParamNumber } from "@/lib/search-params";
 import { ensureCuratedFeedSources } from "@/lib/seed-curated";
 
 type FeedPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-const commentErrorCopy: Record<string, string> = {
-  "invalid-input": "Comment must include 2-4000 readable characters.",
-  "invalid-parent": "One or more referenced parent comments were invalid.",
-  "post-not-found": "Unable to find that post. Please refresh and try again.",
 };
 
 const parseBullets = (value: Prisma.JsonValue | null): string[] => {
@@ -131,6 +126,13 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   const submitted = hasSearchFlag(query, "submitted");
   const commented = hasSearchFlag(query, "commented");
   const commentError = readSearchParam(query, "commentError");
+  const commentSuspendedUntil = readSearchParam(query, "commentSuspendedUntil");
+  const commentViolationCount = readSearchParamNumber(query, "violationCount");
+  const commentErrorMessage = getCommentErrorMessage({
+    commentError,
+    suspendedUntilIso: commentSuspendedUntil,
+    violationCount: commentViolationCount,
+  });
   const now = new Date();
   const activeWindowLabel = windowMode === "all-time" ? "All time" : buildWindowLabel(dayOffset, now);
   const rankedPostsLabel =
@@ -170,7 +172,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         <div className="lloyds-page">
           {submitted ? <Flash tone="success" message="Submission accepted. Summary generation queued." /> : null}
           {commented ? <Flash tone="success" message="Comment posted." /> : null}
-          {commentErrorCopy[commentError] ? <Flash tone="error" message={commentErrorCopy[commentError]} /> : null}
+          {commentErrorMessage ? <Flash tone="error" message={commentErrorMessage} /> : null}
 
           <div className="feed-window-row">
             {dayOptions.map((option) => (

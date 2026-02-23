@@ -8,6 +8,10 @@ import { manifestoParagraphs, manifestoTitle } from "@/lib/manifesto";
 export default async function HomePage() {
   const session = await auth();
 
+  if (session?.user?.accountBannedAt) {
+    redirect("/banned");
+  }
+
   if (session?.user?.manifestoAcceptedAt) {
     redirect("/feed");
   }

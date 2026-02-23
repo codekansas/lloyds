@@ -6,21 +6,18 @@ import { addPostCommentFromPostPageAction } from "@/actions/comment";
 import { CommentComposer } from "@/components/comment-composer";
 import { Flash } from "@/components/flash";
 import { requireManifestoUser } from "@/lib/auth-guards";
+import { getCommentErrorMessage } from "@/lib/comment-feedback";
+import { getCommentPermissionState } from "@/lib/comment-moderation";
 import { buildCommentThreadView } from "@/lib/comment-thread";
+import { constitutionGistUrl } from "@/lib/constitution";
 import { prisma } from "@/lib/prisma";
-import { hasSearchFlag, readSearchParam } from "@/lib/search-params";
+import { hasSearchFlag, readSearchParam, readSearchParamNumber } from "@/lib/search-params";
 
 type PostCommentsPageProps = {
   params: Promise<{
     postId: string;
   }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-const commentErrorCopy: Record<string, string> = {
-  "invalid-input": "Comment must include 2-4000 readable characters.",
-  "invalid-parent": "One or more referenced parent comments were invalid.",
-  "post-not-found": "Unable to find that post. Please return to the feed and try again.",
 };
 
 export default async function PostCommentsPage({ params, searchParams }: PostCommentsPageProps) {
@@ -68,8 +65,25 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
     redirect("/feed?commentError=post-not-found");
   }
 
+  const commentPermission = await getCommentPermissionState(viewer.id);
+
   const commented = hasSearchFlag(query, "commented");
   const commentError = readSearchParam(query, "commentError");
+  const fallbackCommentError = commentPermission.allowed ? "" : commentPermission.reason;
+  const commentErrorKey = commentError || fallbackCommentError;
+  const suspendedUntilFromQuery = readSearchParam(query, "commentSuspendedUntil");
+  const suspendedUntilFromPermission =
+    !commentPermission.allowed && commentPermission.reason === "comment-suspended"
+      ? commentPermission.suspendedUntil.toISOString()
+      : "";
+  const commentSuspendedUntil = suspendedUntilFromQuery || suspendedUntilFromPermission;
+  const violationCountFromQuery = readSearchParamNumber(query, "violationCount");
+  const violationCount = violationCountFromQuery ?? commentPermission.violationCount;
+  const commentErrorMessage = getCommentErrorMessage({
+    commentError: commentErrorKey,
+    suspendedUntilIso: commentSuspendedUntil,
+    violationCount,
+  });
   const ageLabel = post.publishedAt
     ? formatDistanceToNow(post.publishedAt, {
         addSuffix: true,
@@ -114,7 +128,7 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
       </header>
 
       {commented ? <Flash tone="success" message="Comment posted." /> : null}
-      {commentErrorCopy[commentError] ? <Flash tone="error" message={commentErrorCopy[commentError]} /> : null}
+      {commentErrorMessage ? <Flash tone="error" message={commentErrorMessage} /> : null}
 
       <section className="panel feed-comments-panel">
         <h2>Comment Lattice ({commentViewModels.length})</h2>
@@ -179,13 +193,24 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
 
       <section className="panel feed-comments-compose-panel">
         <h2>Write a Comment</h2>
-        <form action={addPostCommentFromPostPageAction} className="feed-comment-form">
-          <CommentComposer
-            postId={post.id}
-            commentOptions={commentReferenceOptions}
-            userOptions={userReferenceOptions}
-          />
-        </form>
+        {commentPermission.allowed ? (
+          <form action={addPostCommentFromPostPageAction} className="feed-comment-form">
+            <CommentComposer
+              postId={post.id}
+              commentOptions={commentReferenceOptions}
+              userOptions={userReferenceOptions}
+            />
+          </form>
+        ) : (
+          <p className="feed-comments-tip">
+            Commenting is currently disabled for this account. Re-read the constitution and try again after the
+            suspension period.{" "}
+            <a href={constitutionGistUrl} target="_blank" rel="noreferrer noopener">
+              Read constitution
+            </a>
+            .
+          </p>
+        )}
       </section>
     </section>
   );

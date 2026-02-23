@@ -23,6 +23,10 @@ export default async function ManifestoPage({ searchParams }: ManifestoPageProps
     redirect("/");
   }
 
+  if (session.user.accountBannedAt) {
+    redirect("/banned");
+  }
+
   if (session.user.manifestoAcceptedAt) {
     redirect("/feed");
   }

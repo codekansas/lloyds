@@ -55,6 +55,27 @@ enum MatchStatus {
   CANCELLED
 }
 
+enum CommentModerationDecision {
+  ALLOWED
+  BLOCKED
+}
+
+enum CommentModerationSeverity {
+  NONE
+  MINOR
+  MAJOR
+  SEVERE
+}
+
+enum CommentModerationPenalty {
+  NONE
+  SUSPEND_12_HOURS
+  SUSPEND_3_DAYS
+  SUSPEND_7_DAYS
+  SUSPEND_30_DAYS
+  BAN_ACCOUNT
+}
+
 model User {
   id                  String          @id @default(cuid())
   name                String?
@@ -62,6 +83,10 @@ model User {
   emailVerified       DateTime?
   image               String?
   manifestoAcceptedAt DateTime?
+  constitutionViolationCount Int      @default(0)
+  commentSuspendedUntil DateTime?
+  accountBannedAt     DateTime?
+  accountBanReason    String?         @db.Text
   timezone            String          @default("UTC")
   headline            String?
   bio                 String?         @db.Text
@@ -81,8 +106,11 @@ model User {
   matchesAsB          Match[]         @relation("MatchUserB")
   ownedFeedSources    FeedSource[]    @relation("FeedSourceOwner")
   appointmentSchedules AppointmentSchedule[]
+  moderationEvents    CommentModerationEvent[]
 
   @@index([manifestoAcceptedAt])
+  @@index([commentSuspendedUntil])
+  @@index([accountBannedAt])
 }
 
 model Account {
@@ -169,6 +197,7 @@ model Post {
   feedSource         FeedSource?    @relation(fields: [feedSourceId], references: [id], onDelete: SetNull)
   profileSignals     ProfileSignal[]
   comments           PostComment[]
+  moderationEvents   CommentModerationEvent[]
 
   @@index([publishedAt])
   @@index([createdAt])
@@ -203,6 +232,30 @@ model PostCommentEdge {
 
   @@id([childCommentId, parentCommentId])
   @@index([parentCommentId, createdAt])
+}
+
+model CommentModerationEvent {
+  id                       String                    @id @default(cuid())
+  userId                   String
+  postId                   String
+  submittedContent         String                    @db.Text
+  decision                 CommentModerationDecision
+  alignsWithConstitution   Boolean
+  severity                 CommentModerationSeverity @default(NONE)
+  rationale                String?                   @db.Text
+  confidence               Float?
+  alignmentScore           Float?
+  violationCountAtDecision Int
+  penalty                  CommentModerationPenalty  @default(NONE)
+  penaltyEndsAt            DateTime?
+  model                    String
+  createdAt                DateTime                  @default(now())
+  user                     User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post                     Post                      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([postId, createdAt])
+  @@index([decision, createdAt])
 }
 
 model ProfileSignal {
