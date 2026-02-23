@@ -7,12 +7,24 @@ AI-powered web application inspired by the original London coffee house: a high-
 - OAuth sign-in via Auth.js (Google + GitHub).
 - Curated feed architecture (RSS ingestion + dedupe).
 - AI-generated article summaries designed for ~10-30 second skim.
+- Constitution-based AI quality ratings (5-tier Lloyd's scale).
 - Anonymous submissions (no karma and no submitter identity in feed UI).
 - Rich member profiles (long-form interests/goals/ideas + blog RSS linkage).
 - Availability-based matching for conversations.
 - Calendar-aware matching with Google Calendar free/busy checks and event insertion.
 - Scheduled background jobs behind secret-protected endpoints.
 - Full Playwright end-to-end suite.
+
+## Constitutional quality model
+- Source of truth: [Lloyd's Constitution gist](https://gist.github.com/codekansas/1f5b9bd7e4ca1332f667f0e04323ee5b)
+- AI ratings are constrained to:
+  - `Common Rumour`
+  - `Merchant's Word`
+  - `Captain's Account`
+  - `Underwriter's Confidence`
+  - `The Lloyd's Assurance`
+- Calibration target over large link sets: `20% / 30% / 30% / 15% / 5%` (low to high).
+- Feed defaults to links added in the last 24 hours; users can browse older windows or all-time.
 
 ## Architecture docs
 - `/Users/ben/Github/lloyds/docs/architecture.md`

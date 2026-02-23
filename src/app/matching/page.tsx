@@ -71,7 +71,6 @@ export default async function MatchingPage({ searchParams }: MatchingPageProps) 
     <section className="lloyds-page">
       <header className="masthead">
         <h1>Conversation Exchange</h1>
-        <h2>Match for Virtual or In-Person Dialogues</h2>
         <p>Availability + profile depth + AI compatibility scoring.</p>
       </header>
 
@@ -150,7 +149,7 @@ export default async function MatchingPage({ searchParams }: MatchingPageProps) 
           <section className="panel">
             <h2>Run Matching</h2>
             <p>
-              This triggers a batch run that pairs open windows, checks calendar availability, and creates events when possible.
+              This triggers a batch run that pairs open windows, checks calendar availability, and creates events when both users have linked Google plus an active appointment schedule.
             </p>
             <form action={runMatchingNowAction}>
               <button type="submit" className="lloyds-button-secondary">

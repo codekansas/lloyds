@@ -1,4 +1,42 @@
 import { formatDistanceToNow } from "date-fns";
+import type { ArticleQualityRating } from "@prisma/client";
+import Link from "next/link";
+
+import { qualityLabelFromRating } from "@/lib/article-quality";
+
+const summaryPreviewBulletCount = 2;
+const excerptPreviewCharacterCount = 220;
+
+const buildExcerptPreview = (
+  excerpt: string | null,
+): {
+  preview: string;
+  hidden: string | null;
+} => {
+  const normalizedExcerpt = excerpt?.trim();
+
+  if (!normalizedExcerpt) {
+    return {
+      preview: "Summary unavailable for this item.",
+      hidden: null,
+    };
+  }
+
+  if (normalizedExcerpt.length <= excerptPreviewCharacterCount) {
+    return {
+      preview: normalizedExcerpt,
+      hidden: null,
+    };
+  }
+
+  const boundaryIdx = normalizedExcerpt.lastIndexOf(" ", excerptPreviewCharacterCount);
+  const splitIdx = boundaryIdx > excerptPreviewCharacterCount * 0.6 ? boundaryIdx : excerptPreviewCharacterCount;
+
+  return {
+    preview: `${normalizedExcerpt.slice(0, splitIdx).trimEnd()}...`,
+    hidden: normalizedExcerpt.slice(splitIdx).trimStart(),
+  };
+};
 
 type FeedPostCardProps = {
   postId: string;
@@ -11,13 +49,9 @@ type FeedPostCardProps = {
   summaryReadSeconds: number | null;
   summaryStatus: "PENDING" | "COMPLETE" | "FAILED";
   excerpt: string | null;
-  comments: Array<{
-    id: string;
-    content: string;
-    createdAt: Date;
-    authorName: string | null;
-  }>;
-  onCommentSubmit: (formData: FormData) => Promise<void>;
+  qualityRating: ArticleQualityRating | null;
+  qualityRationale: string | null;
+  commentsCount: number;
 };
 
 export const FeedPostCard = ({
@@ -31,19 +65,28 @@ export const FeedPostCard = ({
   summaryReadSeconds,
   summaryStatus,
   excerpt,
-  comments,
-  onCommentSubmit,
+  qualityRating,
+  qualityRationale,
+  commentsCount,
 }: FeedPostCardProps) => {
   const ageLabel = publishedAt
     ? formatDistanceToNow(publishedAt, {
         addSuffix: true,
       })
     : "recently added";
+  const previewBullets = summaryBullets.slice(0, summaryPreviewBulletCount);
+  const hiddenBullets = summaryBullets.slice(summaryPreviewBulletCount);
+  const excerptPreview = buildExcerptPreview(excerpt);
+  const qualityLabel = qualityLabelFromRating(qualityRating);
+  const qualityClassName = qualityRating ? `quality-pill quality-pill-${qualityRating.toLowerCase()}` : "quality-pill";
 
   return (
     <article className="feed-card" data-testid={`feed-post-${postId}`}>
       <header className="feed-card-header">
         <div className="feed-card-meta">
+          <span className={qualityClassName} title={qualityRationale ?? undefined}>
+            {qualityLabel}
+          </span>
           <span>{sourceLabel}</span>
           <span>{ageLabel}</span>
           {domain ? <span>{domain}</span> : null}
@@ -62,56 +105,53 @@ export const FeedPostCard = ({
         </div>
 
         {summaryStatus === "COMPLETE" ? (
-          <ul>
-            {summaryBullets.map((bullet) => (
-              <li key={bullet}>{bullet}</li>
-            ))}
-          </ul>
+          summaryBullets.length > 0 ? (
+            <>
+              <ul className="feed-summary-preview">
+                {previewBullets.map((bullet) => (
+                  <li key={bullet}>{bullet}</li>
+                ))}
+              </ul>
+              {hiddenBullets.length > 0 ? (
+                <details className="feed-summary-more">
+                  <summary className="feed-toggle-button lloyds-button-secondary">
+                    <span className="feed-toggle-more">See more...</span>
+                    <span className="feed-toggle-less">Show less</span>
+                  </summary>
+                  <ul>
+                    {hiddenBullets.map((bullet) => (
+                      <li key={bullet}>{bullet}</li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+            </>
+          ) : (
+            <p>Summary unavailable for this item.</p>
+          )
         ) : summaryStatus === "PENDING" ? (
           <p>Summary in progress. Check back in under a minute.</p>
+        ) : excerptPreview.hidden ? (
+          <>
+            <p>{excerptPreview.preview}</p>
+            <details className="feed-summary-more">
+              <summary className="feed-toggle-button lloyds-button-secondary">
+                <span className="feed-toggle-more">See more...</span>
+                <span className="feed-toggle-less">Show less</span>
+              </summary>
+              <p>{excerptPreview.hidden}</p>
+            </details>
+          </>
         ) : (
-          <p>{excerpt || "Summary unavailable for this item."}</p>
+          <p>{excerptPreview.preview}</p>
         )}
       </div>
 
-      <section className="feed-comments">
-        <h3 className="feed-comments-title">Comments ({comments.length})</h3>
-        {comments.length === 0 ? (
-          <p className="feed-comments-empty">No comments yet. Add context or a key question for readers.</p>
-        ) : (
-          <ul className="feed-comments-list">
-            {comments.map((comment) => (
-              <li key={comment.id}>
-                <p>{comment.content}</p>
-                <span>
-                  {(comment.authorName ?? "Member").trim()} ·{" "}
-                  {formatDistanceToNow(comment.createdAt, {
-                    addSuffix: true,
-                  })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <form action={onCommentSubmit} className="feed-comment-form">
-          <input type="hidden" name="postId" value={postId} />
-          <label htmlFor={`comment-${postId}`}>
-            Add Comment
-            <textarea
-              id={`comment-${postId}`}
-              name="content"
-              maxLength={1_000}
-              minLength={2}
-              placeholder="Add a thoughtful comment about this piece."
-              required
-            />
-          </label>
-          <button type="submit" className="lloyds-button-secondary">
-            Post Comment
-          </button>
-        </form>
-      </section>
+      <footer className="feed-card-actions">
+        <Link href={`/feed/${postId}/comments`} className="lloyds-button-secondary">
+          View comments ({commentsCount})
+        </Link>
+      </footer>
     </article>
   );
 };

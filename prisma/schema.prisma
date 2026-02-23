@@ -24,6 +24,19 @@ enum SummaryStatus {
   FAILED
 }
 
+enum ArticleQualityRating {
+  COMMON_RUMOUR
+  MERCHANTS_WORD
+  CAPTAINS_ACCOUNT
+  UNDERWRITERS_CONFIDENCE
+  LLOYDS_ASSURANCE
+}
+
+enum CommentFormat {
+  MARKDOWN
+  RICH_TEXT
+}
+
 enum AvailabilityMode {
   VIRTUAL
   IN_PERSON
@@ -67,6 +80,7 @@ model User {
   matchesAsA          Match[]         @relation("MatchUserA")
   matchesAsB          Match[]         @relation("MatchUserB")
   ownedFeedSources    FeedSource[]    @relation("FeedSourceOwner")
+  appointmentSchedules AppointmentSchedule[]
 
   @@index([manifestoAcceptedAt])
 }
@@ -145,6 +159,10 @@ model Post {
   summaryModel       String?
   summaryGeneratedAt DateTime?
   summaryError       String?        @db.Text
+  qualityRating      ArticleQualityRating?
+  qualityRationale   String?        @db.Text
+  qualityModel       String?
+  qualityScoredAt    DateTime?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   submittedBy        User?          @relation("PostSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
@@ -155,21 +173,36 @@ model Post {
   @@index([publishedAt])
   @@index([createdAt])
   @@index([summaryStatus, createdAt])
+  @@index([qualityRating, createdAt])
   @@index([feedSourceId])
 }
 
 model PostComment {
-  id        String   @id @default(cuid())
-  postId    String
-  authorId  String
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author    User     @relation("PostCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  id          String            @id @default(cuid())
+  postId      String
+  authorId    String
+  content     String            @db.Text
+  format      CommentFormat     @default(MARKDOWN)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  post        Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author      User              @relation("PostCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  parentEdges PostCommentEdge[] @relation("PostCommentEdgesChild")
+  childEdges  PostCommentEdge[] @relation("PostCommentEdgesParent")
 
   @@index([postId, createdAt])
   @@index([authorId, createdAt])
+}
+
+model PostCommentEdge {
+  childCommentId  String
+  parentCommentId String
+  createdAt       DateTime    @default(now())
+  childComment    PostComment @relation("PostCommentEdgesChild", fields: [childCommentId], references: [id], onDelete: Cascade)
+  parentComment   PostComment @relation("PostCommentEdgesParent", fields: [parentCommentId], references: [id], onDelete: Cascade)
+
+  @@id([childCommentId, parentCommentId])
+  @@index([parentCommentId, createdAt])
 }
 
 model ProfileSignal {
@@ -233,6 +266,20 @@ model Match {
   @@index([userAId, createdAt])
   @@index([userBId, createdAt])
   @@index([status, createdAt])
+}
+
+model AppointmentSchedule {
+  id             String   @id @default(cuid())
+  userId         String
+  label          String
+  bookingPageUrl String
+  isActive       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookingPageUrl])
+  @@index([userId, isActive])
 }
 
 model JobRun {

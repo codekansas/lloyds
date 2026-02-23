@@ -11,7 +11,6 @@ import { getDomainFromUrl, normalizeUrl } from "@/lib/url";
 const postSchema = z.object({
   title: z.string().min(6).max(180),
   url: z.string().url().max(2_000),
-  excerpt: z.string().max(800).optional(),
 });
 
 export const submitPostAction = async (formData: FormData): Promise<void> => {
@@ -20,7 +19,6 @@ export const submitPostAction = async (formData: FormData): Promise<void> => {
   const parsed = postSchema.safeParse({
     title: formData.get("title"),
     url: formData.get("url"),
-    excerpt: formData.get("excerpt") || undefined,
   });
 
   if (!parsed.success) {
@@ -56,7 +54,7 @@ export const submitPostAction = async (formData: FormData): Promise<void> => {
       url: parsed.data.url.trim(),
       canonicalUrl,
       domain,
-      excerpt: parsed.data.excerpt?.trim() || null,
+      excerpt: null,
       sourceType: "USER_SUBMISSION",
       submittedById: user.id,
       summaryStatus: "PENDING",

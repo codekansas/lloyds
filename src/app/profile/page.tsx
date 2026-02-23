@@ -23,7 +23,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       select: {
         name: true,
         email: true,
-        timezone: true,
         headline: true,
         bio: true,
         interests: true,
@@ -47,7 +46,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     <section className="lloyds-page">
       <header className="masthead">
         <h1>Member Ledger</h1>
-        <h2>Identity Through Ideas</h2>
         <p>Your profile powers feed personalization and conversation matching.</p>
       </header>
 
@@ -60,11 +58,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
           <label htmlFor="name">
             Name
             <input id="name" name="name" type="text" defaultValue={profile.name ?? ""} />
-          </label>
-
-          <label htmlFor="timezone">
-            Timezone
-            <input id="timezone" name="timezone" type="text" defaultValue={profile.timezone} placeholder="America/New_York" />
           </label>
 
           <label htmlFor="headline">
@@ -149,7 +142,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <p>Email: {profile.email ?? "No email found"}</p>
             <p>Blog posts ingested from your feed: {blogPostsCount}</p>
             <p>
-              For calendar auto-scheduling, sign in with Google and grant calendar scopes.
+              Configure Google calendar scheduling and appointment schedules in Settings.
             </p>
           </section>
         </aside>

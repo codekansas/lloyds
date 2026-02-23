@@ -41,8 +41,14 @@ test("renders ranked feed entries with AI bullets", async ({ page, baseURL }) =>
   });
 
   const source = await createFeedSource("https://e2e-source.local/feed.xml", "E2E Curated Feed");
+  const summaryBullets = [
+    "The article argues that robust institutions matter more than single-point forecasts.",
+    "Case studies show better outcomes when teams expose assumptions before committing capital.",
+    "A practical framework is offered for updating plans as evidence quality changes.",
+    "The author highlights failure modes where confidence outruns available data.",
+  ];
 
-  await seedPost({
+  const post = await seedPost({
     title: "Coordination Under Model Uncertainty",
     url: "https://example.com/coordination-under-uncertainty",
     canonicalUrl: "https://example.com/coordination-under-uncertainty",
@@ -50,22 +56,105 @@ test("renders ranked feed entries with AI bullets", async ({ page, baseURL }) =>
     feedSourceId: source.id,
     summaryStatus: "COMPLETE",
     summaryReadSeconds: 18,
-    summaryBullets: [
-      "The article argues that robust institutions matter more than single-point forecasts.",
-      "Case studies show better outcomes when teams expose assumptions before committing capital.",
-      "A practical framework is offered for updating plans as evidence quality changes.",
-      "The author highlights failure modes where confidence outruns available data.",
-    ],
+    summaryBullets,
   });
 
   await page.goto("/feed");
 
+  const postCard = page.locator(`[data-testid="feed-post-${post.id}"]`);
+
   await expect(page.getByRole("heading", { name: "Lloyd's List" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Coordination Under Model Uncertainty" })).toBeVisible();
-  await expect(
-    page.getByText("The article argues that robust institutions matter more than single-point forecasts."),
-  ).toBeVisible();
-  await expect(page.getByText("18s read")).toBeVisible();
+  await expect(postCard.getByText(summaryBullets[0])).toBeVisible();
+  await expect(postCard.getByText(summaryBullets[1])).toBeVisible();
+  await expect(postCard.getByText(summaryBullets[2])).toBeHidden();
+  await expect(postCard.getByText("18s read")).toBeVisible();
+
+  const summaryToggle = postCard.locator(".feed-summary-more summary");
+  await summaryToggle.click();
+  await expect(postCard.getByText(summaryBullets[2])).toBeVisible();
+  await summaryToggle.click();
+  await expect(postCard.getByText(summaryBullets[2])).toBeHidden();
+});
+
+test("defaults to last 24h and orders feed by constitutional quality rating", async ({ page, baseURL }) => {
+  if (!baseURL) {
+    throw new Error("baseURL is not configured for Playwright.");
+  }
+
+  await loginAsUser(page.context(), {
+    baseUrl: baseURL,
+    manifestoAccepted: true,
+    name: "Quality Reader",
+  });
+
+  const source = await createFeedSource("https://e2e-quality.local/feed.xml", "Quality Source");
+  const now = Date.now();
+
+  const highSignalTitle = "Forecasting with error bars and postmortems";
+  const lowSignalTitle = "Hot takes with no sourcing";
+  const olderTitle = "Three-day old archival analysis";
+
+  await seedPost({
+    title: highSignalTitle,
+    url: "https://example.com/forecasting-postmortems",
+    canonicalUrl: "https://example.com/forecasting-postmortems",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    qualityRating: "UNDERWRITERS_CONFIDENCE",
+    qualityRationale: "Cites sources, explores uncertainty, and translates findings into operational decisions.",
+    summaryBullets: [
+      "The author compares baseline forecasts against calibrated intervals and reports error decomposition.",
+      "Operational implications are explicit, including where confidence should remain low.",
+    ],
+    createdAt: new Date(now - 2 * 60 * 60 * 1000),
+  });
+
+  await seedPost({
+    title: lowSignalTitle,
+    url: "https://example.com/hot-takes",
+    canonicalUrl: "https://example.com/hot-takes",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    qualityRating: "COMMON_RUMOUR",
+    qualityRationale: "Claims are mostly unsupported and arguments are thin.",
+    summaryBullets: [
+      "Broad claims are made without verifiable evidence or reproducible data.",
+      "Counterarguments are dismissed rather than addressed with substance.",
+    ],
+    createdAt: new Date(now - 20 * 60 * 1000),
+  });
+
+  await seedPost({
+    title: olderTitle,
+    url: "https://example.com/old-analysis",
+    canonicalUrl: "https://example.com/old-analysis",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    qualityRating: "LLOYDS_ASSURANCE",
+    qualityRationale: "Rare archival quality analysis with strong sourcing and durable relevance.",
+    summaryBullets: [
+      "Long-horizon analysis with transparent methods and external validation.",
+      "Directly useful for strategic planning under uncertainty.",
+    ],
+    createdAt: new Date(now - 52 * 60 * 60 * 1000),
+  });
+
+  await page.goto("/feed");
+
+  await expect(page.getByRole("link", { name: highSignalTitle })).toBeVisible();
+  await expect(page.getByRole("link", { name: lowSignalTitle })).toBeVisible();
+  await expect(page.getByRole("link", { name: olderTitle })).toHaveCount(0);
+
+  const firstCard = page.locator(".feed-card").first();
+  await expect(firstCard.getByRole("link", { name: highSignalTitle })).toBeVisible();
+
+  await page.getByRole("link", { name: "All time" }).click();
+  await expect(page).toHaveURL(/window=all/);
+  await expect(page.getByRole("link", { name: olderTitle })).toBeVisible();
 });
 
 test("submits a new post and stores it as a user submission", async ({ page, baseURL }) => {
@@ -85,9 +174,7 @@ test("submits a new post and stores it as a user submission", async ({ page, bas
   await page
     .locator("#url")
     .fill("https://example.com/high-agency-collaboration?utm_source=e2e&ref=playwright");
-  await page
-    .locator("#excerpt")
-    .fill("Useful synthesis on coordination overhead, commitment devices, and practical meeting cadence.");
+  await expect(page.locator("#excerpt")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Add to Queue" }).click();
 
@@ -135,14 +222,15 @@ test("posts comments on a feed item and stores them against the author", async (
   await page.goto("/feed");
 
   const postCard = page.locator(`[data-testid="feed-post-${post.id}"]`);
+  await postCard.getByRole("link", { name: "View comments (0)" }).click();
 
-  await expect(postCard.getByText("Comments (0)")).toBeVisible();
-  await postCard.locator(`#comment-${post.id}`).fill("Strong framing. The norms point is especially actionable.");
-  await postCard.getByRole("button", { name: "Post Comment" }).click();
+  await expect(page).toHaveURL(new RegExp(`/feed/${post.id}/comments`));
+  await page.locator(`#comment-${post.id}`).fill("Strong framing. The norms point is especially actionable.");
+  await page.getByRole("button", { name: "Post Comment" }).click();
 
-  await expect(page).toHaveURL(/\/feed\?commented=1/);
+  await expect(page).toHaveURL(new RegExp(`/feed/${post.id}/comments\\?commented=1`));
   await expect(page.getByText("Comment posted.")).toBeVisible();
-  await expect(postCard.getByText("Strong framing. The norms point is especially actionable.")).toBeVisible();
+  await expect(page.getByText("Strong framing. The norms point is especially actionable.")).toBeVisible();
 
   const savedComment = await prismaClient.postComment.findFirstOrThrow({
     where: {
@@ -152,4 +240,111 @@ test("posts comments on a feed item and stores them against the author", async (
   });
 
   expect(savedComment.content).toBe("Strong framing. The norms point is especially actionable.");
+});
+
+test("builds DAG edges when a comment references multiple parent comments", async ({ page, baseURL }) => {
+  if (!baseURL) {
+    throw new Error("baseURL is not configured for Playwright.");
+  }
+
+  const { user } = await loginAsUser(page.context(), {
+    baseUrl: baseURL,
+    manifestoAccepted: true,
+    name: "Graph Builder",
+  });
+
+  const source = await createFeedSource("https://e2e-dag.local/feed.xml", "DAG Source");
+  const post = await seedPost({
+    title: "DAG-style Threading",
+    url: "https://example.com/dag-threading",
+    canonicalUrl: "https://example.com/dag-threading",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    summaryReadSeconds: 12,
+    summaryBullets: ["Threading can model many-to-many relationships when comments point to multiple predecessors."],
+  });
+
+  await prismaClient.postComment.createMany({
+    data: [
+      {
+        postId: post.id,
+        authorId: user.id,
+        content: "Root thought on this thread.",
+        format: "MARKDOWN",
+      },
+      {
+        postId: post.id,
+        authorId: user.id,
+        content: "Second parent comment for synthesis.",
+        format: "MARKDOWN",
+      },
+    ],
+  });
+
+  await page.goto(`/feed/${post.id}/comments`);
+  await page.locator(`#comment-${post.id}`).fill("Synthesis across >>1 and >>2 makes the argument stronger.");
+  await page.getByRole("button", { name: "Post Comment" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/feed/${post.id}/comments\\?commented=1`));
+
+  const savedComment = await prismaClient.postComment.findFirstOrThrow({
+    where: {
+      postId: post.id,
+      authorId: user.id,
+      content: "Synthesis across >>1 and >>2 makes the argument stronger.",
+    },
+    include: {
+      parentEdges: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  expect(savedComment.parentEdges).toHaveLength(2);
+});
+
+test("supports rich text mode when posting comments", async ({ page, baseURL }) => {
+  if (!baseURL) {
+    throw new Error("baseURL is not configured for Playwright.");
+  }
+
+  const { user } = await loginAsUser(page.context(), {
+    baseUrl: baseURL,
+    manifestoAccepted: true,
+    name: "Rich Text Author",
+  });
+
+  const source = await createFeedSource("https://e2e-rich.local/feed.xml", "Rich Source");
+  const post = await seedPost({
+    title: "Rich Text Commenting",
+    url: "https://example.com/rich-text-commenting",
+    canonicalUrl: "https://example.com/rich-text-commenting",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    summaryReadSeconds: 9,
+    summaryBullets: ["Rich text editing helps users compose nuanced arguments quickly."],
+  });
+
+  await page.goto(`/feed/${post.id}/comments`);
+  await page.getByRole("tab", { name: "Rich Text" }).click();
+  await page.locator(".comment-rich-editor").fill("Rich text composition path.");
+  await page.getByRole("button", { name: "Post Comment" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/feed/${post.id}/comments\\?commented=1`));
+
+  const savedComment = await prismaClient.postComment.findFirstOrThrow({
+    where: {
+      postId: post.id,
+      authorId: user.id,
+      format: "RICH_TEXT",
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  expect(savedComment.content).toContain("Rich text composition path.");
 });

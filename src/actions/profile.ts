@@ -10,7 +10,6 @@ import { syncUserBlogFeedSource } from "@/lib/profile";
 
 const profileSchema = z.object({
   name: z.string().max(120).optional(),
-  timezone: z.string().max(80).optional(),
   headline: z.string().max(160).optional(),
   bio: z.string().max(4_000).optional(),
   interests: z.string().max(4_000).optional(),
@@ -24,7 +23,6 @@ export const updateProfileAction = async (formData: FormData): Promise<void> => 
 
   const parsed = profileSchema.safeParse({
     name: formData.get("name") || undefined,
-    timezone: formData.get("timezone") || undefined,
     headline: formData.get("headline") || undefined,
     bio: formData.get("bio") || undefined,
     interests: formData.get("interests") || undefined,
@@ -46,7 +44,6 @@ export const updateProfileAction = async (formData: FormData): Promise<void> => 
     },
     data: {
       name: data.name?.trim() || null,
-      timezone: data.timezone?.trim() || "UTC",
       headline: data.headline?.trim() || null,
       bio: data.bio?.trim() || null,
       interests: data.interests?.trim() || null,

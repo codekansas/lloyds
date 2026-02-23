@@ -32,7 +32,6 @@ export default async function ManifestoPage({ searchParams }: ManifestoPageProps
     <section className="lloyds-page">
       <header className="masthead">
         <h1>Lloyd&apos;s Coffee House</h1>
-        <h2>Covenant of Entry</h2>
         <p>No access without principled consent.</p>
       </header>
 

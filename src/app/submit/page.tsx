@@ -24,7 +24,6 @@ export default async function SubmitPage({ searchParams }: SubmitPageProps) {
     <section className="lloyds-page">
       <header className="masthead">
         <h1>Dispatch Desk</h1>
-        <h2>Submit Long-Form Writing</h2>
         <p>Submissions are anonymous by design and routed through AI summarization.</p>
       </header>
 
@@ -41,15 +40,6 @@ export default async function SubmitPage({ searchParams }: SubmitPageProps) {
           <label htmlFor="url">
             URL
             <input id="url" name="url" type="url" placeholder="https://example.com/article" required />
-          </label>
-
-          <label htmlFor="excerpt">
-            Optional Context
-            <textarea
-              id="excerpt"
-              name="excerpt"
-              placeholder="What should readers pay attention to before opening this?"
-            />
           </label>
 
           <button type="submit" className="lloyds-button">
