@@ -29,6 +29,18 @@ const getCalendarAccount = async (userId: string) => {
   });
 };
 
+const getActiveAppointmentSchedule = async (userId: string) => {
+  return prisma.appointmentSchedule.findFirst({
+    where: {
+      userId,
+      isActive: true,
+    },
+    select: {
+      bookingPageUrl: true,
+    },
+  });
+};
+
 export const isCalendarSlotFree = async (
   userId: string,
   startsAt: Date,
@@ -78,6 +90,11 @@ export const createCalendarEvent = async (input: {
   attendees: string[];
   location: string | null;
 }): Promise<string | null> => {
+  const schedule = await getActiveAppointmentSchedule(input.userId);
+  if (!schedule) {
+    return null;
+  }
+
   const account = await getCalendarAccount(input.userId);
   if (!account?.refresh_token) {
     return null;
@@ -102,7 +119,7 @@ export const createCalendarEvent = async (input: {
       calendarId: "primary",
       requestBody: {
         summary: input.title,
-        description: input.description,
+        description: `${input.description}\n\nAvailability source: ${schedule.bookingPageUrl}`,
         location: input.location ?? undefined,
         start: {
           dateTime: input.startsAt.toISOString(),

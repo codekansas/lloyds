@@ -28,6 +28,9 @@ export const TopNav = ({ isAuthed, acceptedManifesto, userName }: TopNavProps) =
               <Link href="/profile" prefetch={false}>
                 Profile
               </Link>
+              <Link href="/settings" prefetch={false}>
+                Settings
+              </Link>
               <Link href="/matching" prefetch={false}>
                 Match
               </Link>

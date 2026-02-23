@@ -28,6 +28,10 @@ export const metadata: Metadata = {
   title: "Lloyd's Coffee House",
   description:
     "An AI-powered coffee house for high-agency thinkers: curated long-form intelligence and meaningful matching.",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f3ebd8" },
+    { media: "(prefers-color-scheme: dark)", color: "#120d09" },
+  ],
 };
 
 export default async function RootLayout({

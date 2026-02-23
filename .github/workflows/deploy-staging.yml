@@ -102,7 +102,13 @@ jobs:
       - name: Monitor staging health stability window
         run: |
           for attempt in {1..6}; do
-            response="$(curl --fail --silent --show-error "${{ env.STAGING_BASE_URL }}/api/health")"
+            response="$(curl \
+              --fail \
+              --silent \
+              --show-error \
+              --connect-timeout 5 \
+              --max-time 10 \
+              "${{ env.STAGING_BASE_URL }}/api/health")"
             echo "Health check ${attempt}: $response"
             echo "$response" | grep -q '"status":"ok"'
             sleep 30

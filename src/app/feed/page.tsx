@@ -1,7 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 
-import { addPostCommentAction } from "@/actions/comment";
 import { Flash } from "@/components/flash";
 import { FeedPostCard } from "@/components/feed-post-card";
 import { requireManifestoUser } from "@/lib/auth-guards";
@@ -14,7 +13,8 @@ type FeedPageProps = {
 };
 
 const commentErrorCopy: Record<string, string> = {
-  "invalid-input": "Comment must be between 2 and 1000 characters.",
+  "invalid-input": "Comment must include 2-4000 readable characters.",
+  "invalid-parent": "One or more referenced parent comments were invalid.",
   "post-not-found": "Unable to find that post. Please refresh and try again.",
 };
 
@@ -53,7 +53,6 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     <section className="lloyds-page">
       <header className="masthead">
         <h1>Lloyd&apos;s List</h1>
-        <h2>Long-Form Intelligence Feed</h2>
         <p>Anonymous submissions. No karma. Signal-first curation.</p>
       </header>
 
@@ -94,13 +93,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
                   summaryReadSeconds={post.summaryReadSeconds}
                   summaryStatus={post.summaryStatus}
                   excerpt={post.excerpt}
-                  comments={post.comments.map((comment) => ({
-                    id: comment.id,
-                    content: comment.content,
-                    createdAt: comment.createdAt,
-                    authorName: comment.author.name,
-                  }))}
-                  onCommentSubmit={addPostCommentAction}
+                  commentsCount={post._count.comments}
                 />
               ))
             )}

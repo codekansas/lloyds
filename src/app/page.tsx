@@ -20,7 +20,6 @@ export default async function HomePage() {
     <section className="lloyds-page">
       <header className="masthead">
         <h1>Lloyd&apos;s Coffee House</h1>
-        <h2>and Reasoning Gazette</h2>
         <p>Established for builders, engineers, and deep thinkers.</p>
       </header>
 
