@@ -2,7 +2,7 @@ import { expect, test } from "./fixtures";
 import { loginAsUser } from "./helpers/auth";
 import { createFeedSource, prismaClient, seedPost } from "./helpers/db";
 
-test("creates a user session and allows feed access after manifesto acceptance", async ({ page, baseURL }) => {
+test("creates a user session and renders feed home", async ({ page, baseURL }) => {
   if (!baseURL) {
     throw new Error("baseURL is not configured for Playwright.");
   }
@@ -15,9 +15,9 @@ test("creates a user session and allows feed access after manifesto acceptance",
 
   expect(sessionToken.length).toBeGreaterThan(10);
 
-  await page.goto("/feed");
+  await page.goto("/");
 
-  await expect(page).toHaveURL(/\/feed/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "Lloyd's List" })).toBeVisible();
 
   const persistedUser = await prismaClient.user.findUniqueOrThrow({
@@ -59,7 +59,7 @@ test("renders ranked feed entries with AI bullets", async ({ page, baseURL }) =>
     summaryBullets,
   });
 
-  await page.goto("/feed");
+  await page.goto("/");
 
   const postCard = page.locator(`[data-testid="feed-post-${post.id}"]`);
 
@@ -143,7 +143,7 @@ test("defaults to last 24h and orders feed by constitutional quality rating", as
     createdAt: new Date(now - 52 * 60 * 60 * 1000),
   });
 
-  await page.goto("/feed");
+  await page.goto("/");
 
   await expect(page.getByRole("link", { name: highSignalTitle })).toBeVisible();
   await expect(page.getByRole("link", { name: lowSignalTitle })).toBeVisible();
@@ -186,128 +186,17 @@ test("paginates feed results 10 posts at a time", async ({ page, baseURL }) => {
     ),
   );
 
-  await page.goto("/feed");
+  await page.goto("/");
 
   await expect(page.locator(".feed-card")).toHaveCount(10);
   await expect(page.getByText("Page 1 of 2")).toBeVisible();
   await expect(page.getByRole("link", { name: "Next page" })).toBeVisible();
 
   await page.getByRole("link", { name: "Next page" }).click();
-  await expect(page).toHaveURL(/\/feed\?page=2/);
+  await expect(page).toHaveURL(/\/\?page=2/);
   await expect(page.locator(".feed-card")).toHaveCount(2);
   await expect(page.getByText("Page 2 of 2")).toBeVisible();
   await expect(page.getByRole("link", { name: "Previous page" })).toBeVisible();
-});
-
-test("submits a new post and stores it as a user submission", async ({ page, baseURL }) => {
-  if (!baseURL) {
-    throw new Error("baseURL is not configured for Playwright.");
-  }
-
-  const { user } = await loginAsUser(page.context(), {
-    baseUrl: baseURL,
-    manifestoAccepted: true,
-    name: "Submitter",
-  });
-
-  await page.goto("/submit");
-
-  await page.locator("#title").fill("A Field Guide to High-Agency Collaboration");
-  await page
-    .locator("#url")
-    .fill("http://www.example.com/high-agency-collaboration/?utm_source=e2e&ref=playwright");
-  await expect(page.locator("#excerpt")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Add to Queue" }).click();
-
-  await expect(page).toHaveURL(/\/feed\?submitted=1/);
-  await expect(page.getByText("Submission accepted. Summary generation queued.")).toBeVisible();
-
-  const submittedPost = await prismaClient.post.findFirstOrThrow({
-    where: {
-      submittedById: user.id,
-      sourceType: "USER_SUBMISSION",
-    },
-  });
-
-  expect(submittedPost.title).toBe("A Field Guide to High-Agency Collaboration");
-  expect(submittedPost.canonicalUrl).toBe("https://example.com/high-agency-collaboration?ref=playwright");
-});
-
-test("shows submit errors for invalid input and duplicate canonical URLs", async ({ page, baseURL }) => {
-  if (!baseURL) {
-    throw new Error("baseURL is not configured for Playwright.");
-  }
-
-  await loginAsUser(page.context(), {
-    baseUrl: baseURL,
-    manifestoAccepted: true,
-    name: "Submit Validator",
-  });
-
-  const source = await createFeedSource("https://e2e-submit-errors.local/feed.xml", "Submit Errors Source");
-  await seedPost({
-    title: "Existing Article",
-    url: "https://example.com/existing-article?ref=archive",
-    canonicalUrl: "https://example.com/existing-article?ref=archive",
-    sourceType: "CURATED_RSS",
-    feedSourceId: source.id,
-    summaryStatus: "COMPLETE",
-    summaryBullets: ["Pre-seeded to verify duplicate canonical URL handling."],
-  });
-
-  await page.goto("/submit");
-
-  await page.locator("#title").fill("short");
-  await page.locator("#url").fill("https://example.com/too-short-title");
-  await page.getByRole("button", { name: "Add to Queue" }).click();
-
-  await expect(page).toHaveURL(/\/submit\?error=invalid-input/);
-  await expect(page.getByText("Please provide a valid title and URL.")).toBeVisible();
-
-  await page.locator("#title").fill("Duplicate Canonical Test Article");
-  await page.locator("#url").fill("https://example.com/existing-article?utm_source=e2e&ref=archive");
-  await page.getByRole("button", { name: "Add to Queue" }).click();
-
-  await expect(page).toHaveURL(/\/submit\?error=already-exists/);
-  await expect(page.getByText("This article is already in the feed.")).toBeVisible();
-});
-
-test("rejects duplicate submissions when a URL variant normalizes to an existing canonical URL", async ({ page, baseURL }) => {
-  if (!baseURL) {
-    throw new Error("baseURL is not configured for Playwright.");
-  }
-
-  const { user } = await loginAsUser(page.context(), {
-    baseUrl: baseURL,
-    manifestoAccepted: true,
-    name: "Deduper",
-  });
-
-  await seedPost({
-    title: "Canonical Source Entry",
-    url: "https://example.com/canonical-entry?ref=playwright",
-    canonicalUrl: "https://example.com/canonical-entry?ref=playwright",
-    sourceType: "USER_SUBMISSION",
-    submittedById: user.id,
-  });
-
-  await page.goto("/submit");
-
-  await page.locator("#title").fill("Duplicate Canonical Entry");
-  await page.locator("#url").fill("http://www.example.com/canonical-entry/?utm_source=e2e&ref=playwright");
-  await page.getByRole("button", { name: "Add to Queue" }).click();
-
-  await expect(page).toHaveURL(/\/submit\?error=already-exists/);
-  await expect(page.getByText("This article is already in the feed.")).toBeVisible();
-
-  const canonicalMatches = await prismaClient.post.findMany({
-    where: {
-      canonicalUrl: "https://example.com/canonical-entry?ref=playwright",
-    },
-  });
-
-  expect(canonicalMatches).toHaveLength(1);
 });
 
 test("posts comments on a feed item and stores them against the author", async ({ page, baseURL }) => {
@@ -337,7 +226,7 @@ test("posts comments on a feed item and stores them against the author", async (
     ],
   });
 
-  await page.goto("/feed");
+  await page.goto("/");
 
   const postCard = page.locator(`[data-testid="feed-post-${post.id}"]`);
   await postCard.getByRole("link", { name: "View comments (0)" }).click();

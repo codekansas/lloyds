@@ -15,10 +15,6 @@ locals {
       schedule = "cron(0/10 * * * ? *)"
       path     = "/api/jobs/summarize"
     }
-    match-users = {
-      schedule = "cron(15 * * * ? *)"
-      path     = "/api/jobs/match-users"
-    }
   }
 }
 

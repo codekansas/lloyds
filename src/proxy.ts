@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 
-const protectedRoots = ["/feed", "/submit", "/profile", "/matching"];
+const protectedRoots = ["/profile"];
 
 export default auth((request) => {
   const path = request.nextUrl.pathname;
-  const isProtected = protectedRoots.some((root) => path === root || path.startsWith(`${root}/`));
+  const isProtectedCommentPath = /^\/feed\/[^/]+\/comments(?:\/.*)?$/.test(path);
+  const isProtected = isProtectedCommentPath || protectedRoots.some((root) => path === root || path.startsWith(`${root}/`));
   const sessionUser = request.auth?.user;
 
   if (!isProtected) {
@@ -31,5 +32,5 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: ["/feed/:path*", "/submit/:path*", "/profile/:path*", "/matching/:path*"],
+  matcher: ["/feed/:path*", "/profile/:path*"],
 };

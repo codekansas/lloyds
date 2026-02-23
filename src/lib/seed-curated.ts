@@ -1,37 +1,65 @@
+import { getCuratedFeedSeeds } from "@/lib/curated-feeds";
 import { prisma } from "@/lib/prisma";
-import { curatedFeedSeeds } from "@/lib/curated-feeds";
 
-export const ensureCuratedFeedSources = async (): Promise<void> => {
-  const curatedUrls = curatedFeedSeeds.map((source) => source.url);
+export type EnsureCuratedFeedSourcesResult = {
+  upsertedCount: number;
+  deactivatedCount: number;
+  source: "gist" | "fallback";
+  sourceCount: number;
+  referenceUrl: string;
+};
 
-  for (const source of curatedFeedSeeds) {
+export const ensureCuratedFeedSources = async (): Promise<EnsureCuratedFeedSourcesResult> => {
+  const { feeds, source, referenceUrl } = await getCuratedFeedSeeds();
+
+  for (const feed of feeds) {
     await prisma.feedSource.upsert({
       where: {
-        url: source.url,
+        url: feed.url,
       },
       update: {
-        name: source.name,
-        description: source.description,
+        name: feed.name,
+        description: feed.description,
         isActive: true,
       },
       create: {
-        name: source.name,
-        url: source.url,
-        description: source.description,
+        name: feed.name,
+        url: feed.url,
+        description: feed.description,
         sourceType: "CURATED",
       },
     });
   }
 
-  await prisma.feedSource.updateMany({
-    where: {
-      sourceType: "CURATED",
-      url: {
-        notIn: curatedUrls,
+  let deactivatedCount = 0;
+
+  if (source === "gist") {
+    const curatedUrls = feeds.map((feed) => feed.url);
+    const deactivationResult = await prisma.feedSource.updateMany({
+      where:
+        curatedUrls.length > 0
+          ? {
+              sourceType: "CURATED",
+              url: {
+                notIn: curatedUrls,
+              },
+            }
+          : {
+              sourceType: "CURATED",
+            },
+      data: {
+        isActive: false,
       },
-    },
-    data: {
-      isActive: false,
-    },
-  });
+    });
+
+    deactivatedCount = deactivationResult.count;
+  }
+
+  return {
+    upsertedCount: feeds.length,
+    deactivatedCount,
+    source,
+    sourceCount: feeds.length,
+    referenceUrl,
+  };
 };

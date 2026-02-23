@@ -3,14 +3,17 @@ import { loginAsUser } from "./helpers/auth";
 import { prismaClient } from "./helpers/db";
 
 test("redirects guests away from protected routes", async ({ page }) => {
-  await page.goto("/feed");
+  await page.goto("/profile");
 
-  await expect(page).toHaveURL(/\/?\?next=%2Ffeed/);
-  await expect(page.getByRole("heading", { name: "Lloyd's Coffee House", exact: true })).toBeVisible();
-  await expect(page.getByText("Sign in with a standard provider.")).toBeVisible();
+  await expect(page).toHaveURL(/\/?\?next=%2Fprofile/);
+  await expect(page.getByRole("heading", { name: "Lloyd's List", exact: true })).toBeVisible();
+  await expect(page.getByText("Guests can read the feed. Sign in to comment and join discussion.")).toBeVisible();
+
+  await page.goto("/feed/test/comments");
+  await expect(page).toHaveURL(/\/?\?next=%2Ffeed%2Ftest%2Fcomments/);
 });
 
-test("requires covenant acceptance before feed access", async ({ page, baseURL }) => {
+test("requires covenant acceptance before protected actions", async ({ page, baseURL }) => {
   if (!baseURL) {
     throw new Error("baseURL is not configured for Playwright.");
   }
@@ -21,7 +24,7 @@ test("requires covenant acceptance before feed access", async ({ page, baseURL }
     name: "Unaccepted User",
   });
 
-  await page.goto("/feed");
+  await page.goto("/profile");
   await expect(page).toHaveURL(/\/manifesto/);
   await expect(page.getByRole("heading", { level: 2, name: /covenant/i })).toBeVisible();
 
@@ -33,7 +36,9 @@ test("requires covenant acceptance before feed access", async ({ page, baseURL }
   }
 
   await page.getByRole("button", { name: "Agree and Enter" }).click();
-  await expect(page).toHaveURL(/\/feed/);
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/profile");
+  await expect(page).toHaveURL(/\/profile/);
 
   const updatedUser = await prismaClient.user.findUniqueOrThrow({
     where: {

@@ -28,7 +28,7 @@ export default async function ManifestoPage({ searchParams }: ManifestoPageProps
   }
 
   if (session.user.manifestoAcceptedAt) {
-    redirect("/feed");
+    redirect("/");
   }
 
   const errorKey = readSearchParam(query, "error");

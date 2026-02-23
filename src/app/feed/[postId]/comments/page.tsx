@@ -62,7 +62,7 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
   });
 
   if (!post) {
-    redirect("/feed?commentError=post-not-found");
+    redirect("/?commentError=post-not-found");
   }
 
   const commentPermission = await getCommentPermissionState(viewer.id);
@@ -118,7 +118,7 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
         <h1>{post.title}</h1>
 
         <div className="feed-comments-page-actions">
-          <Link href="/feed" className="lloyds-button-secondary">
+          <Link href="/" className="lloyds-button-secondary">
             Back to Feed
           </Link>
           <a href={post.url} target="_blank" rel="noreferrer noopener" className="lloyds-button-secondary">

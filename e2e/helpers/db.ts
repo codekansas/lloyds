@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import {
   PrismaClient,
   type ArticleQualityRating,
-  type AvailabilityMode,
   type PostSourceType,
   type SummaryStatus,
   type User,
@@ -39,19 +38,7 @@ type SeedPostInput = {
   createdAt?: Date;
 };
 
-type SeedAvailabilityInput = {
-  userId: string;
-  startsAt: Date;
-  endsAt: Date;
-  timezone?: string;
-  mode?: AvailabilityMode;
-  location?: string | null;
-  notes?: string | null;
-};
-
 export const resetDatabase = async (): Promise<void> => {
-  await prisma.match.deleteMany();
-  await prisma.availability.deleteMany();
   await prisma.postComment.deleteMany();
   await prisma.profileSignal.deleteMany();
   await prisma.post.deleteMany();
@@ -124,21 +111,6 @@ export const seedPost = async (input: SeedPostInput) => {
       submittedById: input.submittedById ?? null,
       publishedAt: input.publishedAt ?? input.createdAt ?? new Date(),
       createdAt: input.createdAt,
-    },
-  });
-};
-
-export const seedAvailability = async (input: SeedAvailabilityInput) => {
-  return prisma.availability.create({
-    data: {
-      userId: input.userId,
-      startsAt: input.startsAt,
-      endsAt: input.endsAt,
-      timezone: input.timezone ?? "UTC",
-      mode: input.mode ?? "EITHER",
-      location: input.location ?? null,
-      notes: input.notes ?? null,
-      isMatched: false,
     },
   });
 };

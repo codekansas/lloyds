@@ -18,24 +18,21 @@ export const TopNav = ({ isAuthed, acceptedManifesto, isBanned, userName }: TopN
         </Link>
 
         <nav className="lloyds-nav-links">
+          <Link href="/" prefetch={false}>
+            Feed
+          </Link>
+          <Link href="/status" prefetch={false}>
+            Status
+          </Link>
           {acceptedManifesto && !isBanned ? (
-            <>
-              <Link href="/feed" prefetch={false}>
-                Feed
-              </Link>
-              <Link href="/submit" prefetch={false}>
-                Submit
-              </Link>
-              <Link href="/profile" prefetch={false}>
-                Profile
-              </Link>
-              <Link href="/settings" prefetch={false}>
-                Settings
-              </Link>
-              <Link href="/matching" prefetch={false}>
-                Match
-              </Link>
-            </>
+            <Link href="/profile" prefetch={false}>
+              Profile
+            </Link>
+          ) : null}
+          {isAuthed && !acceptedManifesto && !isBanned ? (
+            <Link href="/manifesto" prefetch={false}>
+              Community Standards
+            </Link>
           ) : null}
         </nav>
 
@@ -51,7 +48,7 @@ export const TopNav = ({ isAuthed, acceptedManifesto, isBanned, userName }: TopN
               </form>
             </>
           ) : (
-            <span>Guests welcome. Covenant required.</span>
+            <span>Guests can read the feed. Sign in to comment.</span>
           )}
         </div>
       </div>

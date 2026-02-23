@@ -43,7 +43,6 @@ AWS_PROFILE=professional terraform apply -var-file=environments/production.tfvar
 - Background jobs are invoked by EventBridge schedules that call a Lambda function hitting:
   - `/api/jobs/ingest-rss`
   - `/api/jobs/summarize`
-  - `/api/jobs/match-users`
 
 ## Useful outputs
 After apply, capture these for GitHub Actions repository variables/secrets:

@@ -6,15 +6,12 @@ test("@acceptance cron routes reject unauthorized callers", async ({ request }) 
 
   const ingest = await request.get("/api/jobs/ingest-rss");
   expect(ingest.status()).toBe(401);
-
-  const match = await request.get("/api/jobs/match-users");
-  expect(match.status()).toBe(401);
 });
 
-test("@acceptance protected profile and matching routes stay gated", async ({ page }) => {
+test("@acceptance protected profile and comment routes stay gated", async ({ page }) => {
   await page.goto("/profile");
   await expect(page).toHaveURL(/\/?\?next=%2Fprofile/);
 
-  await page.goto("/matching");
-  await expect(page).toHaveURL(/\/?\?next=%2Fmatching/);
+  await page.goto("/feed/staging/comments");
+  await expect(page).toHaveURL(/\/?\?next=%2Ffeed%2Fstaging%2Fcomments/);
 });

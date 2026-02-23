@@ -17,8 +17,10 @@
   --line-accent-stronger: rgba(123, 79, 30, 0.6);
   --line-success: rgba(28, 110, 55, 0.32);
   --line-success-strong: rgba(28, 110, 55, 0.44);
+  --line-warning: rgba(154, 108, 28, 0.45);
   --line-error: rgba(159, 35, 35, 0.32);
   --ok: #1c6e37;
+  --warning: #8a5d19;
   --error: #9f2323;
   --bg-glow: rgba(250, 246, 234, 0.9);
   --bg-mid: rgba(243, 235, 216, 0.92);
@@ -40,10 +42,9 @@
   --surface-rich-editor: rgba(255, 255, 255, 0.75);
   --surface-toolbar-button: rgba(255, 255, 255, 0.88);
   --surface-suggestion: rgba(255, 255, 255, 0.92);
-  --surface-settings-card: rgba(255, 255, 255, 0.58);
-  --surface-match-card: rgba(255, 255, 255, 0.52);
   --surface-info: rgba(255, 255, 255, 0.45);
   --surface-success: rgba(28, 110, 55, 0.1);
+  --surface-warning: rgba(154, 108, 28, 0.12);
   --surface-error: rgba(159, 35, 35, 0.1);
   --surface-accent-soft: rgba(177, 106, 34, 0.08);
   --surface-accent: rgba(177, 106, 34, 0.14);
@@ -214,8 +215,6 @@ body {
 .lloyds-card,
 .panel,
 .feed-card,
-.settings-schedule-card,
-.match-card,
 .comment-card {
   border: 1px solid var(--line);
   padding: var(--card-padding, 1rem);
@@ -453,30 +452,40 @@ button {
 }
 
 .quality-pill {
-  --pill-border: var(--line-accent);
+  --quality-tier-color: var(--accent);
+  --pill-border: color-mix(in srgb, var(--quality-tier-color) 45%, var(--line));
+  --pill-surface: color-mix(in srgb, var(--quality-tier-color) 14%, var(--surface-chip));
+  color: color-mix(in srgb, var(--quality-tier-color) 76%, var(--ink));
+}
+
+.quality-pill::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--quality-tier-color);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--quality-tier-color) 45%, transparent);
+  flex-shrink: 0;
 }
 
 .quality-pill-common_rumour {
-  --pill-surface: color-mix(in srgb, var(--surface-error) 55%, var(--surface-chip));
-  --pill-border: color-mix(in srgb, var(--line-error) 70%, var(--line));
+  --quality-tier-color: #a93630;
 }
 
 .quality-pill-merchants_word {
-  --pill-surface: color-mix(in srgb, var(--surface-accent-pill) 45%, var(--surface-chip));
+  --quality-tier-color: #87602b;
 }
 
 .quality-pill-captains_account {
-  --pill-surface: color-mix(in srgb, var(--surface-info) 52%, var(--surface-chip));
+  --quality-tier-color: #2b5f8f;
 }
 
 .quality-pill-underwriters_confidence {
-  --pill-surface: color-mix(in srgb, var(--surface-success) 55%, var(--surface-chip));
-  --pill-border: color-mix(in srgb, var(--line-success) 65%, var(--line));
+  --quality-tier-color: #1d6f3f;
 }
 
 .quality-pill-lloyds_assurance {
-  --pill-surface: color-mix(in srgb, var(--surface-accent-pill) 70%, var(--surface-chip));
-  --pill-border: color-mix(in srgb, var(--line-accent) 70%, var(--line));
+  --quality-tier-color: #906c19;
 }
 
 .feed-summary {
@@ -1070,6 +1079,97 @@ button {
   gap: 0.45rem;
 }
 
+.status-overview-panel {
+  gap: 0.9rem;
+}
+
+.status-overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.status-overview-header strong {
+  font-family: var(--font-masthead), serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-overview-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.status-services-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: 1fr;
+}
+
+.status-service-card {
+  gap: 0.65rem;
+}
+
+.status-service-card-operational {
+  border-color: var(--line-success);
+}
+
+.status-service-card-degraded {
+  border-color: var(--line-warning);
+}
+
+.status-service-card-outage {
+  border-color: var(--line-error);
+}
+
+.status-service-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
+.status-service-header h2 {
+  margin: 0;
+}
+
+.status-state-pill {
+  --pill-font-size: 0.63rem;
+  --pill-padding-block: 0.18rem;
+  --pill-padding-inline: 0.46rem;
+}
+
+.status-state-pill-operational {
+  --pill-border: var(--line-success-strong);
+  --pill-surface: var(--surface-success);
+  color: var(--ok);
+}
+
+.status-state-pill-degraded {
+  --pill-border: var(--line-warning);
+  --pill-surface: var(--surface-warning);
+  color: var(--warning);
+}
+
+.status-state-pill-outage {
+  --pill-border: var(--line-error);
+  --pill-surface: var(--surface-error);
+  color: var(--error);
+}
+
+.status-service-details {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.status-service-details li {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
 .list-clean {
   margin: 0;
   padding-left: 0;
@@ -1091,36 +1191,6 @@ button {
   align-items: center;
 }
 
-.settings-schedule-list {
-  display: grid;
-  gap: 0.65rem;
-}
-
-.settings-schedule-card {
-  --card-surface: var(--surface-settings-card);
-  --card-padding: 0.75rem;
-  --card-gap: 0.55rem;
-}
-
-.settings-schedule-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.settings-schedule-header h3 {
-  margin: 0;
-  font-family: var(--font-masthead), serif;
-  text-transform: uppercase;
-  font-size: 1rem;
-  letter-spacing: 0.06em;
-}
-
-.settings-schedule-card p {
-  margin: 0;
-}
-
 .status-pill {
   --pill-border: var(--line-success-strong);
   --pill-surface: var(--surface-success);
@@ -1128,20 +1198,6 @@ button {
   --pill-padding-block: 0.16rem;
   --pill-padding-inline: 0.42rem;
   color: var(--ok);
-}
-
-.match-card {
-  --card-surface: var(--surface-match-card);
-  --card-padding: 0.8rem;
-  --card-gap: 0.45rem;
-}
-
-.match-card h3 {
-  margin: 0;
-  font-family: var(--font-masthead), serif;
-  font-size: 1.05rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
 }
 
 a {
@@ -1160,6 +1216,10 @@ a {
   .manifesto-with-form {
     grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
     align-items: start;
+  }
+
+  .status-services-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

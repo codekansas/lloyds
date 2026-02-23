@@ -16,7 +16,7 @@ export default async function BannedPage() {
 
   if (!user.accountBannedAt) {
     if (user.manifestoAcceptedAt) {
-      redirect("/feed");
+      redirect("/");
     }
 
     redirect("/manifesto");

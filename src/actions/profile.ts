@@ -6,7 +6,6 @@ import { z } from "zod";
 
 import { requireManifestoUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { syncUserBlogFeedSource } from "@/lib/profile";
 
 const profileSchema = z.object({
   name: z.string().max(120).optional(),
@@ -15,7 +14,6 @@ const profileSchema = z.object({
   interests: z.string().max(4_000).optional(),
   goals: z.string().max(4_000).optional(),
   ideasInFlight: z.string().max(4_000).optional(),
-  blogFeedUrl: z.union([z.string().url(), z.literal("")]).optional(),
 });
 
 export const updateProfileAction = async (formData: FormData): Promise<void> => {
@@ -28,7 +26,6 @@ export const updateProfileAction = async (formData: FormData): Promise<void> => 
     interests: formData.get("interests") || undefined,
     goals: formData.get("goals") || undefined,
     ideasInFlight: formData.get("ideasInFlight") || undefined,
-    blogFeedUrl: formData.get("blogFeedUrl") || undefined,
   });
 
   if (!parsed.success) {
@@ -36,7 +33,6 @@ export const updateProfileAction = async (formData: FormData): Promise<void> => 
   }
 
   const data = parsed.data;
-  const blogFeedUrl = data.blogFeedUrl?.trim() || null;
 
   await prisma.user.update({
     where: {
@@ -49,13 +45,10 @@ export const updateProfileAction = async (formData: FormData): Promise<void> => 
       interests: data.interests?.trim() || null,
       goals: data.goals?.trim() || null,
       ideasInFlight: data.ideasInFlight?.trim() || null,
-      blogFeedUrl,
     },
   });
 
-  await syncUserBlogFeedSource(user.id, blogFeedUrl);
-
   revalidatePath("/profile");
-  revalidatePath("/feed");
+  revalidatePath("/");
   redirect("/profile?saved=1");
 };

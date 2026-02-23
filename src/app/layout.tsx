@@ -27,7 +27,7 @@ const utilityFont = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Lloyd's Coffee House",
   description:
-    "An AI-powered coffee house for high-agency thinkers: curated long-form intelligence and meaningful matching.",
+    "An AI-powered coffee house for high-agency thinkers: curated long-form intelligence and public discussion.",
 };
 
 export const viewport: Viewport = {

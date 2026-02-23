@@ -1,39 +1,15 @@
-import { PrismaClient } from "@prisma/client";
-
-import { curatedFeedSeeds } from "../src/lib/curated-feeds";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma";
+import { ensureCuratedFeedSources } from "../src/lib/seed-curated";
 
 const main = async (): Promise<void> => {
-  const curatedUrls = curatedFeedSeeds.map((source) => source.url);
+  const result = await ensureCuratedFeedSources();
 
-  for (const source of curatedFeedSeeds) {
-    await prisma.feedSource.upsert({
-      where: { url: source.url },
-      update: {
-        name: source.name,
-        description: source.description,
-        isActive: true,
-      },
-      create: {
-        name: source.name,
-        url: source.url,
-        description: source.description,
-      },
-    });
-  }
-
-  await prisma.feedSource.updateMany({
-    where: {
-      sourceType: "CURATED",
-      url: {
-        notIn: curatedUrls,
-      },
-    },
-    data: {
-      isActive: false,
-    },
-  });
+  console.log(
+    JSON.stringify({
+      message: "Curated feed source sync complete.",
+      ...result,
+    }),
+  );
 };
 
 main()

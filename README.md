@@ -1,24 +1,24 @@
 # Lloyd's Coffee House
 
-AI-powered web application inspired by the original London coffee house: a high-signal place for long-form ideas and high-agency connections.
+AI-powered web application inspired by the original London coffee house: a high-signal place for long-form ideas and thoughtful discussion.
 
 ## What exists in this MVP
-- Manifesto-first onboarding gate (required before any product use).
+- Manifesto gate for authenticated participation (required before commenting/profile use).
 - OAuth sign-in via Auth.js (Google + GitHub).
 - Curated feed architecture (RSS ingestion + dedupe).
 - AI-generated article summaries designed for ~10-30 second skim.
 - Constitution-based AI quality ratings (5-tier Lloyd's scale).
 - Constitution-aware AI comment moderation with article/thread context.
 - Escalating moderation penalties (temporary commenting suspensions up to account bans).
-- Anonymous submissions (no karma and no submitter identity in feed UI).
-- Rich member profiles (long-form interests/goals/ideas + blog RSS linkage).
-- Availability-based matching for conversations.
-- Calendar-aware matching with Google Calendar free/busy checks and event insertion.
+- Curated RSS source management via public gist sync.
+- Public status dashboard for ingestion/summarization service health.
+- Rich member profiles (long-form interests/goals/ideas).
 - Scheduled background jobs behind secret-protected endpoints.
 - Full Playwright end-to-end suite.
 
 ## Constitutional quality model
 - Source of truth: [Lloyd's Constitution gist](https://gist.github.com/codekansas/1f5b9bd7e4ca1332f667f0e04323ee5b)
+- Curated RSS feeds: [Lloyd's feed source gist](https://gist.github.com/codekansas/7e763397edfcb353da2b516c3d3ef4ba)
 - AI ratings are constrained to:
   - `Common Rumour`
   - `Merchant's Word`
@@ -39,7 +39,6 @@ AI-powered web application inspired by the original London coffee house: a high-
 - Auth.js + Prisma Adapter
 - OpenAI API (`responses`)
 - RSS ingestion (`rss-parser`)
-- Google Calendar API (`googleapis`)
 
 ## Local setup
 1. Install dependencies:
@@ -68,7 +67,7 @@ npm run prisma:generate
 npm run prisma:push
 ```
 
-5. Seed curated feed sources:
+5. Sync curated feed sources from gist:
 ```bash
 npm run db:seed
 ```
@@ -83,7 +82,9 @@ Routes are protected by `CRON_SECRET` via `Authorization: Bearer <CRON_SECRET>`.
 
 - `GET/POST /api/jobs/ingest-rss`
 - `GET/POST /api/jobs/summarize`
-- `GET/POST /api/jobs/match-users`
+
+Public monitoring route (no auth):
+- `GET /api/status`
 
 Example:
 ```bash
@@ -91,7 +92,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/jobs/inge
 ```
 
 ## End-to-end tests (Playwright)
-The suite covers manifesto gating, user session creation, feed/submission, post comments, profile updates, matching, and cron job endpoints.
+The suite covers manifesto gating, user session creation, feed rendering, post comments, profile updates, and cron job endpoints.
 
 1. Ensure `DATABASE_URL` points to a dedicated test Postgres database.
 2. Install browser binaries once:

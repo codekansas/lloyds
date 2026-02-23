@@ -7,9 +7,10 @@ import { ensureCuratedFeedSources } from "@/lib/seed-curated";
 
 const runIngestion = async () => {
   return withTrackedJob("rss-ingest", async () => {
-    await ensureCuratedFeedSources();
+    const curatedSync = await ensureCuratedFeedSources();
     const result = await ingestRssFeeds();
     return {
+      curatedSync,
       ...result,
       itemsProcessed: result.sourcesAttempted,
       itemsCreated: result.postsCreated,
