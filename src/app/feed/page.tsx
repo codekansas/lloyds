@@ -7,6 +7,7 @@ import { requireManifestoUser } from "@/lib/auth-guards";
 import { constitutionGistUrl } from "@/lib/constitution";
 import { getRankedFeedPosts, maxFeedDayOffset } from "@/lib/feed";
 import { prisma } from "@/lib/prisma";
+import { hasSearchFlag, readSearchParam } from "@/lib/search-params";
 import { ensureCuratedFeedSources } from "@/lib/seed-curated";
 
 type FeedPageProps = {
@@ -29,10 +30,13 @@ const parseBullets = (value: Prisma.JsonValue | null): string[] => {
 
 const dayMs = 24 * 60 * 60 * 1000;
 const dayOptionsCount = 4;
+const feedPageSize = 10;
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
 });
+
+type FeedWindowMode = "rolling-24h" | "all-time";
 
 const clampDayOffset = (rawValue: string | string[] | undefined): number => {
   if (typeof rawValue !== "string") {
@@ -47,6 +51,19 @@ const clampDayOffset = (rawValue: string | string[] | undefined): number => {
   return Math.max(0, Math.min(maxFeedDayOffset, parsed));
 };
 
+const clampPage = (rawValue: string | string[] | undefined): number => {
+  if (typeof rawValue !== "string") {
+    return 1;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+
+  return Math.max(1, parsed);
+};
+
 const buildWindowLabel = (dayOffset: number, now: Date): string => {
   if (dayOffset === 0) {
     return "Last 24 hours";
@@ -59,6 +76,31 @@ const buildWindowLabel = (dayOffset: number, now: Date): string => {
   return `${dateFormatter.format(start)} - ${dateFormatter.format(inclusiveEnd)}`;
 };
 
+const buildFeedHref = ({
+  windowMode,
+  dayOffset,
+  page,
+}: {
+  windowMode: FeedWindowMode;
+  dayOffset: number;
+  page: number;
+}): string => {
+  const params = new URLSearchParams();
+
+  if (windowMode === "all-time") {
+    params.set("window", "all");
+  } else if (dayOffset > 0) {
+    params.set("dayOffset", String(dayOffset));
+  }
+
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+
+  const queryString = params.toString();
+  return queryString.length > 0 ? `/feed?${queryString}` : "/feed";
+};
+
 export default async function FeedPage({ searchParams }: FeedPageProps) {
   await requireManifestoUser();
   await ensureCuratedFeedSources();
@@ -66,8 +108,13 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   const query = await searchParams;
   const windowMode = query.window === "all" ? "all-time" : "rolling-24h";
   const dayOffset = clampDayOffset(query.dayOffset);
+  const requestedPage = clampPage(query.page);
   const feedWindow = windowMode === "all-time" ? { mode: "all-time" as const } : { mode: "rolling-24h" as const, dayOffset };
-  const feedPosts = await getRankedFeedPosts(40, feedWindow);
+  const { posts: feedPosts, totalCount: totalRankedPosts, page: activePage, totalPages } = await getRankedFeedPosts({
+    page: requestedPage,
+    pageSize: feedPageSize,
+    window: feedWindow,
+  });
   const [sourceCount, pendingSummaries] = await Promise.all([
     prisma.feedSource.count({
       where: {
@@ -81,17 +128,36 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
     }),
   ]);
 
-  const submitted = query.submitted === "1";
-  const commented = query.commented === "1";
-  const commentError = typeof query.commentError === "string" ? query.commentError : "";
+  const submitted = hasSearchFlag(query, "submitted");
+  const commented = hasSearchFlag(query, "commented");
+  const commentError = readSearchParam(query, "commentError");
   const now = new Date();
   const activeWindowLabel = windowMode === "all-time" ? "All time" : buildWindowLabel(dayOffset, now);
+  const rankedPostsLabel =
+    totalRankedPosts === 0
+      ? "0 ranked posts"
+      : `${(activePage - 1) * feedPageSize + 1}-${(activePage - 1) * feedPageSize + feedPosts.length} of ${totalRankedPosts} ranked posts`;
 
   const dayOptions = Array.from({ length: Math.min(dayOptionsCount, maxFeedDayOffset + 1) }, (_, idx) => ({
-    href: idx === 0 ? "/feed" : `/feed?dayOffset=${idx}`,
+    href: buildFeedHref({
+      windowMode: "rolling-24h",
+      dayOffset: idx,
+      page: 1,
+    }),
     label: idx === 0 ? "Last 24h" : buildWindowLabel(idx, now),
     active: windowMode !== "all-time" && dayOffset === idx,
   }));
+
+  const previousPageHref = buildFeedHref({
+    windowMode,
+    dayOffset,
+    page: activePage - 1,
+  });
+  const nextPageHref = buildFeedHref({
+    windowMode,
+    dayOffset,
+    page: activePage + 1,
+  });
 
   return (
     <section className="lloyds-page">
@@ -111,24 +177,28 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
               <Link
                 key={option.href}
                 href={option.href}
-                className={`feed-window-pill ${option.active ? "feed-window-pill-active" : ""}`}
+                className={`feed-window-pill lloyds-pill ${option.active ? "feed-window-pill-active" : ""}`}
               >
                 {option.label}
               </Link>
             ))}
             <Link
-              href="/feed?window=all"
-              className={`feed-window-pill ${windowMode === "all-time" ? "feed-window-pill-active" : ""}`}
+              href={buildFeedHref({
+                windowMode: "all-time",
+                dayOffset,
+                page: 1,
+              })}
+              className={`feed-window-pill lloyds-pill ${windowMode === "all-time" ? "feed-window-pill-active" : ""}`}
             >
               All time
             </Link>
           </div>
 
           <div className="stats-row">
-            <span>{feedPosts.length} ranked posts</span>
-            <span>{activeWindowLabel}</span>
-            <span>{sourceCount} active feed sources</span>
-            <span>{pendingSummaries} summaries pending</span>
+            <span className="lloyds-pill">{rankedPostsLabel}</span>
+            <span className="lloyds-pill">{activeWindowLabel}</span>
+            <span className="lloyds-pill">{sourceCount} active feed sources</span>
+            <span className="lloyds-pill">{pendingSummaries} summaries pending</span>
           </div>
 
           <div className="feed-grid">
@@ -163,6 +233,28 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
               ))
             )}
           </div>
+
+          {totalPages > 1 ? (
+            <nav className="feed-pagination-row" aria-label="Feed pages">
+              {activePage > 1 ? (
+                <Link href={previousPageHref} className="lloyds-button-secondary">
+                  Previous page
+                </Link>
+              ) : (
+                <span className="lloyds-pill feed-pagination-disabled">Previous page</span>
+              )}
+              <span className="lloyds-pill">
+                Page {activePage} of {totalPages}
+              </span>
+              {activePage < totalPages ? (
+                <Link href={nextPageHref} className="lloyds-button-secondary">
+                  Next page
+                </Link>
+              ) : (
+                <span className="lloyds-pill feed-pagination-disabled">Next page</span>
+              )}
+            </nav>
+          ) : null}
         </div>
 
         <aside className="lloyds-page">

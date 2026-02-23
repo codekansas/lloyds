@@ -84,9 +84,15 @@ const buildWindowBounds = (window: FeedWindow): { start: Date; end: Date } | nul
 };
 
 export const getRankedFeedPosts = async (
-  limit = 40,
-  window: FeedWindow = { mode: "rolling-24h", dayOffset: 0 },
+  options: {
+    page?: number;
+    pageSize?: number;
+    window?: FeedWindow;
+  } = {},
 ) => {
+  const pageSize = Number.isFinite(options.pageSize) ? Math.max(1, Math.floor(options.pageSize ?? 10)) : 10;
+  const requestedPage = Number.isFinite(options.page) ? Math.max(1, Math.floor(options.page ?? 1)) : 1;
+  const window = options.window ?? { mode: "rolling-24h" as const, dayOffset: 0 };
   const bounds = buildWindowBounds(window);
 
   const candidatePosts = await prisma.post.findMany({
@@ -114,7 +120,18 @@ export const getRankedFeedPosts = async (
     },
   });
 
-  const ranked = candidatePosts.sort(comparePosts).slice(0, limit);
+  const ranked = candidatePosts.sort(comparePosts);
+  const totalCount = ranked.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const startIdx = (page - 1) * pageSize;
+  const posts = ranked.slice(startIdx, startIdx + pageSize);
 
-  return ranked;
+  return {
+    posts,
+    totalCount,
+    page,
+    pageSize,
+    totalPages,
+  };
 };

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { submitPostAction } from "@/actions/post";
 import { Flash } from "@/components/flash";
 import { requireManifestoUser } from "@/lib/auth-guards";
+import { readSearchParam } from "@/lib/search-params";
 
 type SubmitPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -18,7 +19,7 @@ export default async function SubmitPage({ searchParams }: SubmitPageProps) {
   await requireManifestoUser();
 
   const query = await searchParams;
-  const errorKey = typeof query.error === "string" ? query.error : "";
+  const errorKey = readSearchParam(query, "error");
 
   return (
     <section className="lloyds-page">

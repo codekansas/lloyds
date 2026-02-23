@@ -4,6 +4,7 @@ import { acceptManifestoAction } from "@/actions/manifesto";
 import { auth } from "@/auth";
 import { Flash } from "@/components/flash";
 import { manifestoParagraphs, manifestoTenets, manifestoTitle } from "@/lib/manifesto";
+import { readSearchParam } from "@/lib/search-params";
 
 type ManifestoPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -26,7 +27,7 @@ export default async function ManifestoPage({ searchParams }: ManifestoPageProps
     redirect("/feed");
   }
 
-  const errorKey = typeof query.error === "string" ? query.error : "";
+  const errorKey = readSearchParam(query, "error");
 
   return (
     <section className="lloyds-page">

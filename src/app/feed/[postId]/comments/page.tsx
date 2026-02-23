@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 import { addPostCommentFromPostPageAction } from "@/actions/comment";
 import { CommentComposer } from "@/components/comment-composer";
 import { Flash } from "@/components/flash";
-import { getCommentPlainText, renderCommentBodyHtml } from "@/lib/comment-format";
 import { requireManifestoUser } from "@/lib/auth-guards";
+import { buildCommentThreadView } from "@/lib/comment-thread";
 import { prisma } from "@/lib/prisma";
+import { hasSearchFlag, readSearchParam } from "@/lib/search-params";
 
 type PostCommentsPageProps = {
   params: Promise<{
@@ -16,63 +17,10 @@ type PostCommentsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-type CommentViewModel = {
-  id: string;
-  number: number;
-  authorId: string;
-  authorLabel: string;
-  ageLabel: string;
-  renderedHtml: string;
-  preview: string;
-  parentIds: string[];
-  childIds: string[];
-};
-
 const commentErrorCopy: Record<string, string> = {
   "invalid-input": "Comment must include 2-4000 readable characters.",
   "invalid-parent": "One or more referenced parent comments were invalid.",
   "post-not-found": "Unable to find that post. Please return to the feed and try again.",
-};
-
-const previewCharacterLimit = 160;
-
-const toHandle = (value: string): string => {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-};
-
-const truncate = (value: string): string => {
-  if (value.length <= previewCharacterLimit) {
-    return value;
-  }
-
-  const boundaryIdx = value.lastIndexOf(" ", previewCharacterLimit);
-  const endIdx = boundaryIdx > previewCharacterLimit * 0.6 ? boundaryIdx : previewCharacterLimit;
-  return `${value.slice(0, endIdx).trimEnd()}...`;
-};
-
-const createUniqueHandle = ({
-  displayLabel,
-  fallback,
-  usedHandles,
-}: {
-  displayLabel: string;
-  fallback: string;
-  usedHandles: Set<string>;
-}): string => {
-  const baseHandle = toHandle(displayLabel) || `member-${fallback}`;
-  let nextHandle = baseHandle;
-  let suffix = 2;
-
-  while (usedHandles.has(nextHandle)) {
-    nextHandle = `${baseHandle}-${suffix}`;
-    suffix += 1;
-  }
-
-  usedHandles.add(nextHandle);
-  return nextHandle;
 };
 
 export default async function PostCommentsPage({ params, searchParams }: PostCommentsPageProps) {
@@ -120,84 +68,37 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
     redirect("/feed?commentError=post-not-found");
   }
 
-  const commented = query.commented === "1";
-  const commentError = typeof query.commentError === "string" ? query.commentError : "";
+  const commented = hasSearchFlag(query, "commented");
+  const commentError = readSearchParam(query, "commentError");
   const ageLabel = post.publishedAt
     ? formatDistanceToNow(post.publishedAt, {
         addSuffix: true,
       })
     : "recently added";
 
-  const commentNumberById = new Map(post.comments.map((comment, idx) => [comment.id, idx + 1]));
-  const commentViewModels: CommentViewModel[] = post.comments.map((comment) => {
-    const parentIds = [...new Set(comment.parentEdges.map((edge) => edge.parentCommentId))].filter((parentId) =>
-      commentNumberById.has(parentId),
-    );
-    const childIds = [...new Set(comment.childEdges.map((edge) => edge.childCommentId))]
-      .filter((childId) => commentNumberById.has(childId))
-      .sort((leftId, rightId) => {
-        return (commentNumberById.get(leftId) ?? 0) - (commentNumberById.get(rightId) ?? 0);
-      });
-
-    const plainText = getCommentPlainText({
-      content: comment.content,
-      format: comment.format,
-    });
-
-    return {
-      id: comment.id,
-      number: commentNumberById.get(comment.id) ?? 0,
-      authorId: comment.authorId,
-      authorLabel: (comment.author.name ?? "Member").trim() || "Member",
-      ageLabel: formatDistanceToNow(comment.createdAt, {
-        addSuffix: true,
-      }),
-      renderedHtml: renderCommentBodyHtml({
+  const { commentNumberById, commentViewById, commentViewModels, commentReferenceOptions, userReferenceOptions } =
+    buildCommentThreadView({
+      comments: post.comments.map((comment) => ({
+        id: comment.id,
+        authorId: comment.authorId,
+        authorName: comment.author?.name ?? null,
         content: comment.content,
         format: comment.format,
-      }),
-      preview: truncate(plainText),
-      parentIds,
-      childIds,
-    };
-  });
-  const commentViewById = new Map(commentViewModels.map((comment) => [comment.id, comment]));
-  const commentReferenceOptions = commentViewModels.map((comment) => ({
-    id: comment.id,
-    number: comment.number,
-    authorLabel: comment.authorLabel,
-    preview: comment.preview,
-  }));
-  const participantEntries = new Map<string, string>();
-
-  for (const comment of commentViewModels) {
-    participantEntries.set(comment.authorId, comment.authorLabel);
-  }
-
-  if (!participantEntries.has(viewer.id)) {
-    participantEntries.set(viewer.id, (viewer.name ?? "You").trim() || "You");
-  }
-
-  const usedHandles = new Set<string>();
-  const userReferenceOptions = [...participantEntries.entries()]
-    .map(([userId, displayLabel]) => ({
-      id: userId,
-      label: displayLabel,
-      handle: createUniqueHandle({
-        displayLabel,
-        fallback: userId.slice(-6),
-        usedHandles,
-      }),
-    }))
-    .sort((left, right) => left.label.localeCompare(right.label));
+        createdAt: comment.createdAt,
+        parentIds: comment.parentEdges.map((edge) => edge.parentCommentId),
+        childIds: comment.childEdges.map((edge) => edge.childCommentId),
+      })),
+      viewerId: viewer.id,
+      viewerName: viewer.name ?? null,
+    });
 
   return (
     <section className="lloyds-page">
       <header className="panel feed-comments-page-header">
         <div className="feed-comments-page-meta">
-          <span>Article comments</span>
-          <span>{ageLabel}</span>
-          {post.domain ? <span>{post.domain}</span> : null}
+          <span className="lloyds-pill">Article comments</span>
+          <span className="lloyds-pill">{ageLabel}</span>
+          {post.domain ? <span className="lloyds-pill">{post.domain}</span> : null}
         </div>
 
         <h1>{post.title}</h1>
@@ -217,8 +118,8 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
 
       <section className="panel feed-comments-panel">
         <h2>Comment Lattice ({commentViewModels.length})</h2>
-        <p className="feed-comments-tip">
-          Comments can reference multiple parents. Use <code>&gt;&gt;number</code> to build the DAG.
+        <p className="feed-comments-tip lloyds-label">
+          Comments can reference multiple parents. Use <code>&gt;&gt;number</code> or <code>!number</code> to build the DAG.
         </p>
 
         {commentViewModels.length === 0 ? (
@@ -230,7 +131,7 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
                 <li key={comment.id} id={`comment-${comment.id}`} className="comment-lattice-item">
                   <article className="comment-card">
                     <header className="comment-card-header">
-                      <a href={`#comment-${comment.id}`} className="comment-anchor">
+                      <a href={`#comment-${comment.id}`} className="comment-anchor lloyds-pill">
                         #{comment.number}
                       </a>
                       <span>{comment.authorLabel}</span>
@@ -239,12 +140,12 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
 
                     {comment.parentIds.length > 0 ? (
                       <div className="comment-link-row">
-                        <strong>Replies to</strong>
+                        <strong className="lloyds-label">Replies to</strong>
                         {comment.parentIds.map((parentId) => {
                           const parentComment = commentViewById.get(parentId);
 
                           return parentComment ? (
-                            <a key={parentId} href={`#comment-${parentId}`} className="comment-ref-chip">
+                            <a key={parentId} href={`#comment-${parentId}`} className="comment-ref-chip lloyds-pill">
                               &gt;&gt;{parentComment.number}
                               <span className="comment-ref-tooltip">{parentComment.preview}</span>
                             </a>
@@ -257,11 +158,11 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
 
                     {comment.childIds.length > 0 ? (
                       <div className="comment-link-row comment-link-row-backlinks">
-                        <strong>Referenced by</strong>
+                        <strong className="lloyds-label">Referenced by</strong>
                         {comment.childIds.map((childId) => {
                           const childNumber = commentNumberById.get(childId);
                           return childNumber ? (
-                            <a key={childId} href={`#comment-${childId}`} className="comment-ref-chip">
+                            <a key={childId} href={`#comment-${childId}`} className="comment-ref-chip lloyds-pill">
                               &gt;&gt;{childNumber}
                             </a>
                           ) : null;

@@ -4,6 +4,7 @@ import { addAvailabilityAction, runMatchingNowAction } from "@/actions/availabil
 import { Flash } from "@/components/flash";
 import { requireManifestoUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
+import { hasSearchFlag, readSearchParam, readSearchParamNumber } from "@/lib/search-params";
 
 type MatchingPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -63,9 +64,9 @@ export default async function MatchingPage({ searchParams }: MatchingPageProps) 
     }),
   ]);
 
-  const errorKey = typeof query.error === "string" ? query.error : "";
-  const availabilityAdded = query.availability === "added";
-  const matchedCount = typeof query.matched === "string" ? Number(query.matched) : null;
+  const errorKey = readSearchParam(query, "error");
+  const availabilityAdded = hasSearchFlag(query, "availability", "added");
+  const matchedCount = readSearchParamNumber(query, "matched");
 
   return (
     <section className="lloyds-page">
@@ -167,7 +168,7 @@ export default async function MatchingPage({ searchParams }: MatchingPageProps) 
                 {matches.map((match) => {
                   const counterpart = match.userAId === user.id ? match.userB : match.userA;
                   return (
-                    <article className="match-card" key={match.id}>
+                    <article className="lloyds-card match-card" key={match.id}>
                       <h3>{counterpart.name ?? "Member"}</h3>
                       <p>{counterpart.headline ?? "No headline yet."}</p>
                       <p>{formatWindow(match.slotStartsAt, match.slotEndsAt)}</p>

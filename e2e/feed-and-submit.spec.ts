@@ -157,6 +157,48 @@ test("defaults to last 24h and orders feed by constitutional quality rating", as
   await expect(page.getByRole("link", { name: olderTitle })).toBeVisible();
 });
 
+test("paginates feed results 10 posts at a time", async ({ page, baseURL }) => {
+  if (!baseURL) {
+    throw new Error("baseURL is not configured for Playwright.");
+  }
+
+  await loginAsUser(page.context(), {
+    baseUrl: baseURL,
+    manifestoAccepted: true,
+    name: "Pagination Reader",
+  });
+
+  const source = await createFeedSource("https://e2e-pagination.local/feed.xml", "Pagination Source");
+  const now = Date.now();
+
+  await Promise.all(
+    Array.from({ length: 12 }, (_, idx) =>
+      seedPost({
+        title: `Paged Post ${String(idx + 1).padStart(2, "0")}`,
+        url: `https://example.com/paged-post-${idx + 1}`,
+        canonicalUrl: `https://example.com/paged-post-${idx + 1}`,
+        sourceType: "CURATED_RSS",
+        feedSourceId: source.id,
+        summaryStatus: "COMPLETE",
+        summaryBullets: [`Summary for paged post ${idx + 1}.`],
+        createdAt: new Date(now - idx * 60_000),
+      }),
+    ),
+  );
+
+  await page.goto("/feed");
+
+  await expect(page.locator(".feed-card")).toHaveCount(10);
+  await expect(page.getByText("Page 1 of 2")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Next page" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Next page" }).click();
+  await expect(page).toHaveURL(/\/feed\?page=2/);
+  await expect(page.locator(".feed-card")).toHaveCount(2);
+  await expect(page.getByText("Page 2 of 2")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Previous page" })).toBeVisible();
+});
+
 test("submits a new post and stores it as a user submission", async ({ page, baseURL }) => {
   if (!baseURL) {
     throw new Error("baseURL is not configured for Playwright.");
@@ -173,7 +215,7 @@ test("submits a new post and stores it as a user submission", async ({ page, bas
   await page.locator("#title").fill("A Field Guide to High-Agency Collaboration");
   await page
     .locator("#url")
-    .fill("https://example.com/high-agency-collaboration?utm_source=e2e&ref=playwright");
+    .fill("http://www.example.com/high-agency-collaboration/?utm_source=e2e&ref=playwright");
   await expect(page.locator("#excerpt")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Add to Queue" }).click();
@@ -190,6 +232,82 @@ test("submits a new post and stores it as a user submission", async ({ page, bas
 
   expect(submittedPost.title).toBe("A Field Guide to High-Agency Collaboration");
   expect(submittedPost.canonicalUrl).toBe("https://example.com/high-agency-collaboration?ref=playwright");
+});
+
+test("shows submit errors for invalid input and duplicate canonical URLs", async ({ page, baseURL }) => {
+  if (!baseURL) {
+    throw new Error("baseURL is not configured for Playwright.");
+  }
+
+  await loginAsUser(page.context(), {
+    baseUrl: baseURL,
+    manifestoAccepted: true,
+    name: "Submit Validator",
+  });
+
+  const source = await createFeedSource("https://e2e-submit-errors.local/feed.xml", "Submit Errors Source");
+  await seedPost({
+    title: "Existing Article",
+    url: "https://example.com/existing-article?ref=archive",
+    canonicalUrl: "https://example.com/existing-article?ref=archive",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    summaryBullets: ["Pre-seeded to verify duplicate canonical URL handling."],
+  });
+
+  await page.goto("/submit");
+
+  await page.locator("#title").fill("short");
+  await page.locator("#url").fill("https://example.com/too-short-title");
+  await page.getByRole("button", { name: "Add to Queue" }).click();
+
+  await expect(page).toHaveURL(/\/submit\?error=invalid-input/);
+  await expect(page.getByText("Please provide a valid title and URL.")).toBeVisible();
+
+  await page.locator("#title").fill("Duplicate Canonical Test Article");
+  await page.locator("#url").fill("https://example.com/existing-article?utm_source=e2e&ref=archive");
+  await page.getByRole("button", { name: "Add to Queue" }).click();
+
+  await expect(page).toHaveURL(/\/submit\?error=already-exists/);
+  await expect(page.getByText("This article is already in the feed.")).toBeVisible();
+});
+
+test("rejects duplicate submissions when a URL variant normalizes to an existing canonical URL", async ({ page, baseURL }) => {
+  if (!baseURL) {
+    throw new Error("baseURL is not configured for Playwright.");
+  }
+
+  const { user } = await loginAsUser(page.context(), {
+    baseUrl: baseURL,
+    manifestoAccepted: true,
+    name: "Deduper",
+  });
+
+  await seedPost({
+    title: "Canonical Source Entry",
+    url: "https://example.com/canonical-entry?ref=playwright",
+    canonicalUrl: "https://example.com/canonical-entry?ref=playwright",
+    sourceType: "USER_SUBMISSION",
+    submittedById: user.id,
+  });
+
+  await page.goto("/submit");
+
+  await page.locator("#title").fill("Duplicate Canonical Entry");
+  await page.locator("#url").fill("http://www.example.com/canonical-entry/?utm_source=e2e&ref=playwright");
+  await page.getByRole("button", { name: "Add to Queue" }).click();
+
+  await expect(page).toHaveURL(/\/submit\?error=already-exists/);
+  await expect(page.getByText("This article is already in the feed.")).toBeVisible();
+
+  const canonicalMatches = await prismaClient.post.findMany({
+    where: {
+      canonicalUrl: "https://example.com/canonical-entry?ref=playwright",
+    },
+  });
+
+  expect(canonicalMatches).toHaveLength(1);
 });
 
 test("posts comments on a feed item and stores them against the author", async ({ page, baseURL }) => {
@@ -242,6 +360,59 @@ test("posts comments on a feed item and stores them against the author", async (
   expect(savedComment.content).toBe("Strong framing. The norms point is especially actionable.");
 });
 
+test("rejects comment submissions with parent IDs that are outside the current post", async ({ page, baseURL }) => {
+  if (!baseURL) {
+    throw new Error("baseURL is not configured for Playwright.");
+  }
+
+  const { user } = await loginAsUser(page.context(), {
+    baseUrl: baseURL,
+    manifestoAccepted: true,
+    name: "Invalid Parent Tester",
+  });
+
+  const source = await createFeedSource("https://e2e-invalid-parent.local/feed.xml", "Invalid Parent Source");
+  const primaryPost = await seedPost({
+    title: "Primary Post",
+    url: "https://example.com/primary-post",
+    canonicalUrl: "https://example.com/primary-post",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    summaryBullets: ["Primary post used for comment form submission."],
+  });
+  const unrelatedPost = await seedPost({
+    title: "Unrelated Post",
+    url: "https://example.com/unrelated-post",
+    canonicalUrl: "https://example.com/unrelated-post",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    summaryBullets: ["Unrelated post used to mint a valid-but-foreign parent comment ID."],
+  });
+
+  const foreignComment = await prismaClient.postComment.create({
+    data: {
+      postId: unrelatedPost.id,
+      authorId: user.id,
+      content: "Foreign parent candidate.",
+      format: "MARKDOWN",
+    },
+  });
+
+  await page.goto(`/feed/${primaryPost.id}/comments`);
+  await page.locator(`#comment-${primaryPost.id}`).fill("Attempting to reference a comment from another post.");
+  await page
+    .locator('input[name=\"parentIds\"]')
+    .evaluate((node, nextValue) => {
+      (node as HTMLInputElement).value = nextValue;
+    }, JSON.stringify([foreignComment.id]));
+  await page.getByRole("button", { name: "Post Comment" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/feed/${primaryPost.id}/comments\\?commentError=invalid-parent`));
+  await expect(page.getByText("One or more referenced parent comments were invalid.")).toBeVisible();
+});
+
 test("builds DAG edges when a comment references multiple parent comments", async ({ page, baseURL }) => {
   if (!baseURL) {
     throw new Error("baseURL is not configured for Playwright.");
@@ -283,25 +454,23 @@ test("builds DAG edges when a comment references multiple parent comments", asyn
   });
 
   await page.goto(`/feed/${post.id}/comments`);
-  await page.locator(`#comment-${post.id}`).fill("Synthesis across >>1 and >>2 makes the argument stronger.");
+  await page.locator(`#comment-${post.id}`).fill("Synthesis across !1 and !2 makes the argument stronger.");
   await page.getByRole("button", { name: "Post Comment" }).click();
 
   await expect(page).toHaveURL(new RegExp(`/feed/${post.id}/comments\\?commented=1`));
-  const firstReferenceChip = page
-    .locator(".comment-link-row", { hasText: "Replies to" })
-    .first()
-    .locator(".comment-ref-chip")
-    .first();
+  const latestComment = page.locator(".comment-lattice-item").last();
+  const firstReferenceChip = latestComment.locator(".comment-link-row", { hasText: "Replies to" }).locator(".comment-ref-chip").first();
   const firstReferenceTooltip = firstReferenceChip.locator(".comment-ref-tooltip");
   await expect(firstReferenceTooltip).not.toBeVisible();
   await firstReferenceChip.hover();
   await expect(firstReferenceTooltip).toBeVisible();
+  await expect(latestComment.locator(".comment-body a[href^='#comment-']")).toHaveCount(2);
 
   const savedComment = await prismaClient.postComment.findFirstOrThrow({
     where: {
       postId: post.id,
       authorId: user.id,
-      content: "Synthesis across >>1 and >>2 makes the argument stronger.",
+      content: "Synthesis across !1 and !2 makes the argument stronger.",
     },
     include: {
       parentEdges: true,

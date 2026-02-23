@@ -2,6 +2,7 @@ import { updateProfileAction } from "@/actions/profile";
 import { Flash } from "@/components/flash";
 import { requireManifestoUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
+import { hasSearchFlag, readSearchParam } from "@/lib/search-params";
 
 type ProfilePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -39,8 +40,8 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     }),
   ]);
 
-  const saved = query.saved === "1";
-  const errorKey = typeof query.error === "string" ? query.error : "";
+  const saved = hasSearchFlag(query, "saved");
+  const errorKey = readSearchParam(query, "error");
 
   return (
     <section className="lloyds-page">
