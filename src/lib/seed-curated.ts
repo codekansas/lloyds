@@ -1,5 +1,6 @@
 import { getCuratedFeedSeeds } from "@/lib/curated-feeds";
 import { prisma } from "@/lib/prisma";
+import { getDomainFromUrl } from "@/lib/url";
 
 export type EnsureCuratedFeedSourcesResult = {
   upsertedCount: number;
@@ -9,23 +10,33 @@ export type EnsureCuratedFeedSourcesResult = {
   referenceUrl: string;
 };
 
+const deriveSourceNameFromUrl = (url: string): string => {
+  try {
+    return getDomainFromUrl(url);
+  } catch {
+    return url;
+  }
+};
+
 export const ensureCuratedFeedSources = async (): Promise<EnsureCuratedFeedSourcesResult> => {
   const { feeds, source, referenceUrl } = await getCuratedFeedSeeds();
 
   for (const feed of feeds) {
+    const sourceName = deriveSourceNameFromUrl(feed.url);
+
     await prisma.feedSource.upsert({
       where: {
         url: feed.url,
       },
       update: {
-        name: feed.name,
-        description: feed.description,
+        name: sourceName,
+        description: null,
         isActive: true,
       },
       create: {
-        name: feed.name,
+        name: sourceName,
         url: feed.url,
-        description: feed.description,
+        description: null,
         sourceType: "CURATED",
       },
     });
