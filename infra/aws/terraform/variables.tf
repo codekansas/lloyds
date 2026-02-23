@@ -110,7 +110,7 @@ variable "openai_api_key" {
 }
 
 variable "openai_model" {
-  description = "OpenAI model for summaries/matching"
+  description = "OpenAI model for summaries/moderation"
   type        = string
   default     = "gpt-4.1-mini"
 }

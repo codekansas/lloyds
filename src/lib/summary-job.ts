@@ -48,18 +48,6 @@ export const processPendingSummaries = async (batchSize = 12): Promise<SummaryJo
         },
       });
 
-      if (post.sourceType === "USER_BLOG" && post.submittedById) {
-        await prisma.profileSignal.create({
-          data: {
-            userId: post.submittedById,
-            sourcePostId: post.id,
-            signalType: "BLOG_SUMMARY",
-            content: summary.bullets.join(" "),
-            score: Math.min(1, summary.bullets.length / 8),
-          },
-        });
-      }
-
       result.completed += 1;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Summary generation failed.";

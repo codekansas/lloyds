@@ -30,6 +30,6 @@ export const acceptManifestoAction = async (formData: FormData): Promise<void> =
     },
   });
 
-  revalidatePath("/feed");
-  redirect("/feed");
+  revalidatePath("/");
+  redirect("/");
 };

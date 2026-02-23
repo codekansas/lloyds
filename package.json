@@ -27,7 +27,6 @@
     "@prisma/client": "^6.19.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "googleapis": "^171.4.0",
     "lucide-react": "^0.575.0",
     "marked": "^17.0.3",
     "next": "16.1.6",

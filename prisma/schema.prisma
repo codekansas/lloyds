@@ -9,13 +9,11 @@ datasource db {
 
 enum FeedSourceType {
   CURATED
-  USER_BLOG
 }
 
 enum PostSourceType {
   CURATED_RSS
   USER_SUBMISSION
-  USER_BLOG
 }
 
 enum SummaryStatus {
@@ -35,24 +33,6 @@ enum ArticleQualityRating {
 enum CommentFormat {
   MARKDOWN
   RICH_TEXT
-}
-
-enum AvailabilityMode {
-  VIRTUAL
-  IN_PERSON
-  EITHER
-}
-
-enum MatchMode {
-  VIRTUAL
-  IN_PERSON
-}
-
-enum MatchStatus {
-  PROPOSED
-  SCHEDULED
-  COMPLETED
-  CANCELLED
 }
 
 enum CommentModerationDecision {
@@ -87,25 +67,18 @@ model User {
   commentSuspendedUntil DateTime?
   accountBannedAt     DateTime?
   accountBanReason    String?         @db.Text
-  timezone            String          @default("UTC")
   headline            String?
   bio                 String?         @db.Text
   interests           String?         @db.Text
   goals               String?         @db.Text
   ideasInFlight       String?         @db.Text
-  blogFeedUrl         String?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
   accounts            Account[]
   sessions            Session[]
   authoredPosts       Post[]          @relation("PostSubmittedBy")
   authoredComments    PostComment[]   @relation("PostCommentAuthor")
-  availabilities      Availability[]
   profileSignals      ProfileSignal[]
-  matchesAsA          Match[]         @relation("MatchUserA")
-  matchesAsB          Match[]         @relation("MatchUserB")
-  ownedFeedSources    FeedSource[]    @relation("FeedSourceOwner")
-  appointmentSchedules AppointmentSchedule[]
   moderationEvents    CommentModerationEvent[]
 
   @@index([manifestoAcceptedAt])
@@ -157,17 +130,14 @@ model FeedSource {
   url          String         @unique
   description  String?
   sourceType   FeedSourceType @default(CURATED)
-  ownerUserId  String?
   isActive     Boolean        @default(true)
   lastFetchedAt DateTime?
   failureCount Int            @default(0)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
-  ownerUser    User?          @relation("FeedSourceOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   posts        Post[]
 
   @@index([isActive, lastFetchedAt])
-  @@index([ownerUserId])
 }
 
 model Post {
@@ -271,68 +241,6 @@ model ProfileSignal {
 
   @@index([userId, createdAt])
   @@index([sourcePostId])
-}
-
-model Availability {
-  id        String           @id @default(cuid())
-  userId    String
-  startsAt  DateTime
-  endsAt    DateTime
-  timezone  String
-  mode      AvailabilityMode
-  location  String?
-  notes     String?          @db.Text
-  isMatched Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  matchAsA  Match[]          @relation("MatchAvailabilityA")
-  matchAsB  Match[]          @relation("MatchAvailabilityB")
-
-  @@index([userId, startsAt])
-  @@index([isMatched, startsAt])
-}
-
-model Match {
-  id              String      @id @default(cuid())
-  userAId         String
-  userBId         String
-  availabilityAId String
-  availabilityBId String
-  slotStartsAt    DateTime
-  slotEndsAt      DateTime
-  mode            MatchMode
-  location        String?
-  aiRationale     String?     @db.Text
-  compatibilityScore Float?
-  calendarEventAId String?
-  calendarEventBId String?
-  status          MatchStatus @default(PROPOSED)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  userA           User        @relation("MatchUserA", fields: [userAId], references: [id], onDelete: Cascade)
-  userB           User        @relation("MatchUserB", fields: [userBId], references: [id], onDelete: Cascade)
-  availabilityA   Availability @relation("MatchAvailabilityA", fields: [availabilityAId], references: [id], onDelete: Cascade)
-  availabilityB   Availability @relation("MatchAvailabilityB", fields: [availabilityBId], references: [id], onDelete: Cascade)
-
-  @@unique([availabilityAId, availabilityBId])
-  @@index([userAId, createdAt])
-  @@index([userBId, createdAt])
-  @@index([status, createdAt])
-}
-
-model AppointmentSchedule {
-  id             String   @id @default(cuid())
-  userId         String
-  label          String
-  bookingPageUrl String
-  isActive       Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, bookingPageUrl])
-  @@index([userId, isActive])
 }
 
 model JobRun {

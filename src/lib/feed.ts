@@ -23,14 +23,13 @@ const summaryStatusWeight = {
 
 const sourceTypeWeight = {
   CURATED_RSS: 3,
-  USER_BLOG: 2,
   USER_SUBMISSION: 1,
 } as const;
 
 type RankablePost = {
   qualityRating: ArticleQualityRating | null;
   summaryStatus: "PENDING" | "COMPLETE" | "FAILED";
-  sourceType: "CURATED_RSS" | "USER_SUBMISSION" | "USER_BLOG";
+  sourceType: "CURATED_RSS" | "USER_SUBMISSION";
   createdAt: Date;
   publishedAt: Date | null;
 };

@@ -27,7 +27,7 @@ const postCommentSchema = z.object({
 
 const resolveCommentsPagePath = (postIdValue: unknown): string => {
   const parsedPostId = z.string().cuid().safeParse(postIdValue);
-  return parsedPostId.success ? `/feed/${parsedPostId.data}/comments` : "/feed";
+  return parsedPostId.success ? `/feed/${parsedPostId.data}/comments` : "/";
 };
 
 const parseParentIds = (rawParentIds: string | undefined): string[] | null => {
@@ -243,7 +243,7 @@ export const addPostCommentAction = async (formData: FormData): Promise<void> =>
   const parsed = parseCommentSubmission(formData);
 
   if (!parsed) {
-    redirect(buildCommentErrorPath({ basePath: "/feed", commentError: "invalid-input" }));
+    redirect(buildCommentErrorPath({ basePath: "/", commentError: "invalid-input" }));
   }
 
   const moderationResult = await moderateCommentSubmission({
@@ -259,13 +259,13 @@ export const addPostCommentAction = async (formData: FormData): Promise<void> =>
     }
 
     if (moderationResult.error === "post-not-found") {
-      redirect(buildCommentErrorPath({ basePath: "/feed", commentError: "post-not-found" }));
+      redirect(buildCommentErrorPath({ basePath: "/", commentError: "post-not-found" }));
     }
 
     if (moderationResult.error === "comment-suspended") {
       redirect(
         buildCommentErrorPath({
-          basePath: "/feed",
+          basePath: "/",
           commentError: "comment-suspended",
           suspendedUntil: moderationResult.suspendedUntil,
           violationCount: moderationResult.violationCount,
@@ -275,7 +275,7 @@ export const addPostCommentAction = async (formData: FormData): Promise<void> =>
 
     redirect(
       buildCommentErrorPath({
-        basePath: "/feed",
+        basePath: "/",
         commentError: "constitution-violation",
         suspendedUntil: moderationResult.suspendedUntil,
         violationCount: moderationResult.violationCount,
@@ -292,12 +292,12 @@ export const addPostCommentAction = async (formData: FormData): Promise<void> =>
   });
 
   if (!createResult.ok) {
-    redirect(buildCommentErrorPath({ basePath: "/feed", commentError: createResult.error }));
+    redirect(buildCommentErrorPath({ basePath: "/", commentError: createResult.error }));
   }
 
-  revalidatePath("/feed");
+  revalidatePath("/");
   revalidatePath(resolveCommentsPagePath(createResult.postId));
-  redirect("/feed?commented=1");
+  redirect("/?commented=1");
 };
 
 export const addPostCommentFromPostPageAction = async (formData: FormData): Promise<void> => {
@@ -358,7 +358,7 @@ export const addPostCommentFromPostPageAction = async (formData: FormData): Prom
     redirect(buildCommentErrorPath({ basePath: fallbackPath, commentError: createResult.error }));
   }
 
-  revalidatePath("/feed");
+  revalidatePath("/");
   revalidatePath(resolveCommentsPagePath(createResult.postId));
   redirect(`${resolveCommentsPagePath(createResult.postId)}?commented=1`);
 };

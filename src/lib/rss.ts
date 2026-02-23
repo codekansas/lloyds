@@ -1,4 +1,3 @@
-import type { PostSourceType } from "@prisma/client";
 import Parser from "rss-parser";
 
 import { prisma } from "@/lib/prisma";
@@ -34,10 +33,6 @@ const parsePublishedDate = (rawDate: string | null | undefined): Date | null => 
   return candidate;
 };
 
-const toPostSourceType = (isUserBlogSource: boolean): PostSourceType => {
-  return isUserBlogSource ? "USER_BLOG" : "CURATED_RSS";
-};
-
 export type IngestRssResult = {
   sourcesAttempted: number;
   sourcesSucceeded: number;
@@ -53,6 +48,7 @@ export const ingestRssFeeds = async (
   const sources = await prisma.feedSource.findMany({
     where: {
       isActive: true,
+      sourceType: "CURATED",
     },
     take: maxSources,
     orderBy: [{ lastFetchedAt: "asc" }, { createdAt: "asc" }],
@@ -70,8 +66,6 @@ export const ingestRssFeeds = async (
     try {
       const feed = await parser.parseURL(source.url);
       const limitedItems = (feed.items ?? []).slice(0, maxItemsPerSource);
-      const sourceType = toPostSourceType(source.sourceType === "USER_BLOG");
-
       for (const item of limitedItems) {
         const itemUrl = item.link?.trim();
         const title = item.title?.trim();
@@ -114,9 +108,9 @@ export const ingestRssFeeds = async (
             domain,
             excerpt: trimExcerpt(item.contentSnippet ?? item.content ?? item.summary),
             publishedAt: parsePublishedDate(item.isoDate ?? item.pubDate),
-            sourceType,
+            sourceType: "CURATED_RSS",
             feedSourceId: source.id,
-            submittedById: source.sourceType === "USER_BLOG" ? source.ownerUserId : null,
+            submittedById: null,
             summaryStatus: "PENDING",
           },
         });

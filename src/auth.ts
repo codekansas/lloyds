@@ -24,11 +24,7 @@ if (env.googleClientId && env.googleClientSecret) {
       clientSecret: env.googleClientSecret,
       authorization: {
         params: {
-          scope:
-            "openid email profile https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly",
-          access_type: "offline",
-          prompt: "consent",
-          response_type: "code",
+          scope: "openid email profile",
         },
       },
     }),

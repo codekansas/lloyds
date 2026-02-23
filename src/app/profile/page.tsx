@@ -16,29 +16,20 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const user = await requireManifestoUser();
   const query = await searchParams;
 
-  const [profile, blogPostsCount] = await Promise.all([
-    prisma.user.findUniqueOrThrow({
-      where: {
-        id: user.id,
-      },
-      select: {
-        name: true,
-        email: true,
-        headline: true,
-        bio: true,
-        interests: true,
-        goals: true,
-        ideasInFlight: true,
-        blogFeedUrl: true,
-      },
-    }),
-    prisma.post.count({
-      where: {
-        submittedById: user.id,
-        sourceType: "USER_BLOG",
-      },
-    }),
-  ]);
+  const profile = await prisma.user.findUniqueOrThrow({
+    where: {
+      id: user.id,
+    },
+    select: {
+      name: true,
+      email: true,
+      headline: true,
+      bio: true,
+      interests: true,
+      goals: true,
+      ideasInFlight: true,
+    },
+  });
 
   const saved = hasSearchFlag(query, "saved");
   const errorKey = readSearchParam(query, "error");
@@ -47,7 +38,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     <section className="lloyds-page">
       <header className="masthead">
         <h1>Member Ledger</h1>
-        <p>Your profile powers feed personalization and conversation matching.</p>
+        <p>Share context about what you are building and exploring.</p>
       </header>
 
       <div className="split-grid">
@@ -112,17 +103,6 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             />
           </label>
 
-          <label htmlFor="blogFeedUrl">
-            Blog RSS URL
-            <input
-              id="blogFeedUrl"
-              name="blogFeedUrl"
-              type="url"
-              defaultValue={profile.blogFeedUrl ?? ""}
-              placeholder="https://yourblog.com/feed.xml"
-            />
-          </label>
-
           <button type="submit" className="lloyds-button">
             Save Profile
           </button>
@@ -130,21 +110,17 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
         <aside className="lloyds-page">
           <section className="panel">
-            <h2>Matching Inputs</h2>
+            <h2>Profile Notes</h2>
             <ul className="list-clean">
-              <li>Interests + goals shape compatibility scoring.</li>
-              <li>Ideas-in-flight generate higher quality intro context.</li>
-              <li>Your linked blog feed continuously enriches profile signals.</li>
+              <li>Use concrete language about active projects and questions.</li>
+              <li>Include specifics others can respond to in conversation.</li>
+              <li>Keep this updated as your work evolves.</li>
             </ul>
           </section>
 
           <section className="panel">
-            <h2>Integration State</h2>
+            <h2>Account</h2>
             <p>Email: {profile.email ?? "No email found"}</p>
-            <p>Blog posts ingested from your feed: {blogPostsCount}</p>
-            <p>
-              Configure Google calendar scheduling and appointment schedules in Settings.
-            </p>
           </section>
         </aside>
       </div>

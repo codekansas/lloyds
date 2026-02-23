@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { createUser, prismaClient, seedAvailability, seedPost } from "./helpers/db";
+import { prismaClient, seedPost } from "./helpers/db";
 
 const cronSecret = process.env.CRON_SECRET ?? "e2e-cron-secret";
 
@@ -48,55 +48,37 @@ test("processes pending summaries with authorized cron secret", async ({ request
   expect(post.summaryReadSeconds).toBeGreaterThanOrEqual(10);
 });
 
-test("creates matches from open availability windows", async ({ request }) => {
-  const userA = await createUser({
-    email: "match-a@example.test",
-    name: "Match A",
-    manifestoAcceptedAt: new Date(),
-    interests: "AI governance",
-    goals: "Build durable policy tools",
-    ideasInFlight: "Institution design",
+test("status endpoint highlights summary backlog", async ({ request }) => {
+  const createdAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const seedUrl = `https://example.com/pending-${createdAt.valueOf()}`;
+
+  await seedPost({
+    title: "Pending Summary Backlog",
+    url: seedUrl,
+    canonicalUrl: seedUrl,
+    sourceType: "CURATED_RSS",
+    summaryStatus: "PENDING",
+    summaryBullets: [],
+    summaryReadSeconds: undefined,
+    excerpt: "Queued for summarization.",
+    createdAt,
   });
 
-  const userB = await createUser({
-    email: "match-b@example.test",
-    name: "Match B",
-    manifestoAcceptedAt: new Date(),
-    interests: "AI governance and engineering",
-    goals: "Improve decision quality",
-    ideasInFlight: "Risk governance systems",
-  });
-
-  const startsAt = new Date(Date.now() + 3 * 60 * 60 * 1000);
-  const endsAt = new Date(startsAt.valueOf() + 75 * 60 * 1000);
-
-  await seedAvailability({
-    userId: userA.id,
-    startsAt,
-    endsAt,
-    timezone: "UTC",
-    mode: "EITHER",
-  });
-
-  await seedAvailability({
-    userId: userB.id,
-    startsAt: new Date(startsAt.valueOf() + 10 * 60 * 1000),
-    endsAt: new Date(endsAt.valueOf() + 10 * 60 * 1000),
-    timezone: "UTC",
-    mode: "EITHER",
-  });
-
-  const response = await request.get("/api/jobs/match-users", {
-    headers: {
-      authorization: `Bearer ${cronSecret}`,
-    },
-  });
-
+  const response = await request.get("/api/status");
   expect(response.ok()).toBeTruthy();
 
-  const payload = (await response.json()) as { matchesCreated?: number };
-  expect(payload.matchesCreated).toBeGreaterThanOrEqual(1);
+  const payload = (await response.json()) as {
+    summaryQueue?: {
+      pendingCount?: number | null;
+    };
+    services?: Array<{
+      id: string;
+      state: "operational" | "degraded" | "outage";
+    }>;
+  };
 
-  const matchCount = await prismaClient.match.count();
-  expect(matchCount).toBeGreaterThanOrEqual(1);
+  const summaryService = payload.services?.find((service) => service.id === "post-summarization");
+  expect(summaryService).toBeDefined();
+  expect(summaryService?.state).not.toBe("operational");
+  expect(payload.summaryQueue?.pendingCount).toBeGreaterThanOrEqual(1);
 });

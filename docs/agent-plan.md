@@ -27,15 +27,14 @@ This file is the execution contract for future agents. Update statuses and decis
 - [ ] Implement OAuth sign-in providers and required scopes.
 - [ ] Enforce manifesto acceptance before product access.
 - [ ] Expand profile editing and long-form fields.
-- [ ] Link user blog RSS and ingest posts as profile signal.
-- [ ] Build profile signal extraction (topics and active questions).
+- [ ] Improve profile quality prompts and editing UX.
+- [ ] Build profile signal extraction from on-platform activity.
 
-## Phase 3: Matching and Scheduling
-- [ ] Capture structured availability windows.
-- [ ] Capture optional location(s) and mode preferences.
-- [ ] Implement compatibility scoring and pair selection.
-- [ ] Integrate calendar free/busy checks.
-- [ ] Auto-create calendar events for confirmed matches.
+## Phase 3: Discussion Quality
+- [ ] Improve comment composer ergonomics for DAG threads.
+- [ ] Add clearer feedback loops for moderation outcomes.
+- [ ] Add per-thread quality cues without introducing karma mechanics.
+- [ ] Add moderation tooling for faster human review.
 
 ## Phase 4: Trust, Safety, and Governance
 - [ ] Add reporting/blocking pipeline.
@@ -44,14 +43,14 @@ This file is the execution contract for future agents. Update statuses and decis
 - [ ] Add policy pages and legal disclaimers.
 
 ## Phase 5: Intelligence and Personalization
-- [ ] Add semantic indexing for profile/post matching.
+- [ ] Add semantic indexing for profile/post relevance.
 - [ ] Personalize feed ranking from explicit interests + behavior.
 - [ ] Add reflective prompts for better profile quality.
 - [ ] Add agentic curation assistant for source quality control.
 
 ## Non-Functional Requirements
 - [ ] Performance: p95 feed render under 1.5s (cached).
-- [ ] Job reliability: ingestion/summarization/matching idempotent.
+- [ ] Job reliability: ingestion/summarization idempotent.
 - [ ] Security: least-privilege OAuth scopes and secret rotation runbook.
 - [ ] Privacy: user export/delete workflows.
 
