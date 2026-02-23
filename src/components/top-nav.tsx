@@ -5,10 +5,11 @@ import { signOutAction } from "@/actions/auth";
 type TopNavProps = {
   isAuthed: boolean;
   acceptedManifesto: boolean;
+  isBanned: boolean;
   userName: string | null | undefined;
 };
 
-export const TopNav = ({ isAuthed, acceptedManifesto, userName }: TopNavProps) => {
+export const TopNav = ({ isAuthed, acceptedManifesto, isBanned, userName }: TopNavProps) => {
   return (
     <header className="lloyds-nav">
       <div className="lloyds-nav-inner">
@@ -17,7 +18,7 @@ export const TopNav = ({ isAuthed, acceptedManifesto, userName }: TopNavProps) =
         </Link>
 
         <nav className="lloyds-nav-links">
-          {acceptedManifesto ? (
+          {acceptedManifesto && !isBanned ? (
             <>
               <Link href="/feed" prefetch={false}>
                 Feed
@@ -42,6 +43,7 @@ export const TopNav = ({ isAuthed, acceptedManifesto, userName }: TopNavProps) =
           {isAuthed ? (
             <>
               <span>{userName || "Member"}</span>
+              {isBanned ? <span className="lloyds-pill">Banned</span> : null}
               <form action={signOutAction}>
                 <button type="submit" className="lloyds-button-secondary">
                   Sign out

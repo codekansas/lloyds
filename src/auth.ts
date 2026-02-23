@@ -47,6 +47,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = user.id;
         session.user.manifestoAcceptedAt = user.manifestoAcceptedAt ?? null;
+        session.user.commentSuspendedUntil = user.commentSuspendedUntil ?? null;
+        session.user.accountBannedAt = user.accountBannedAt ?? null;
+        session.user.accountBanReason = user.accountBanReason ?? null;
       }
 
       return session;

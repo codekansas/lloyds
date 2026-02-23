@@ -8,6 +8,8 @@ AI-powered web application inspired by the original London coffee house: a high-
 - Curated feed architecture (RSS ingestion + dedupe).
 - AI-generated article summaries designed for ~10-30 second skim.
 - Constitution-based AI quality ratings (5-tier Lloyd's scale).
+- Constitution-aware AI comment moderation with article/thread context.
+- Escalating moderation penalties (temporary commenting suspensions up to account bans).
 - Anonymous submissions (no karma and no submitter identity in feed UI).
 - Rich member profiles (long-form interests/goals/ideas + blog RSS linkage).
 - Availability-based matching for conversations.

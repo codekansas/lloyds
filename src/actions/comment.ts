@@ -11,6 +11,7 @@ import {
   normalizeCommentFormat,
 } from "@/lib/comment-format";
 import { requireManifestoUser } from "@/lib/auth-guards";
+import { moderateCommentSubmission } from "@/lib/comment-moderation";
 import { prisma } from "@/lib/prisma";
 
 const minCommentCharacters = 2;
@@ -98,6 +99,36 @@ const parseCommentSubmission = (
     format: normalizedFormat,
     parentIds: normalizedParentIds,
   };
+};
+
+const buildPathWithSearchParams = (basePath: string, params: URLSearchParams): string => {
+  const queryString = params.toString();
+  return queryString.length > 0 ? `${basePath}?${queryString}` : basePath;
+};
+
+const buildCommentErrorPath = ({
+  basePath,
+  commentError,
+  suspendedUntil,
+  violationCount,
+}: {
+  basePath: string;
+  commentError: string;
+  suspendedUntil?: Date | null;
+  violationCount?: number | null;
+}): string => {
+  const params = new URLSearchParams();
+  params.set("commentError", commentError);
+
+  if (suspendedUntil) {
+    params.set("commentSuspendedUntil", suspendedUntil.toISOString());
+  }
+
+  if (typeof violationCount === "number" && Number.isFinite(violationCount)) {
+    params.set("violationCount", String(violationCount));
+  }
+
+  return buildPathWithSearchParams(basePath, params);
 };
 
 const createPostComment = async ({
@@ -212,7 +243,44 @@ export const addPostCommentAction = async (formData: FormData): Promise<void> =>
   const parsed = parseCommentSubmission(formData);
 
   if (!parsed) {
-    redirect("/feed?commentError=invalid-input");
+    redirect(buildCommentErrorPath({ basePath: "/feed", commentError: "invalid-input" }));
+  }
+
+  const moderationResult = await moderateCommentSubmission({
+    userId: user.id,
+    postId: parsed.postId,
+    content: parsed.content,
+    format: parsed.format,
+  });
+
+  if (!moderationResult.ok) {
+    if (moderationResult.error === "account-banned") {
+      redirect("/banned");
+    }
+
+    if (moderationResult.error === "post-not-found") {
+      redirect(buildCommentErrorPath({ basePath: "/feed", commentError: "post-not-found" }));
+    }
+
+    if (moderationResult.error === "comment-suspended") {
+      redirect(
+        buildCommentErrorPath({
+          basePath: "/feed",
+          commentError: "comment-suspended",
+          suspendedUntil: moderationResult.suspendedUntil,
+          violationCount: moderationResult.violationCount,
+        }),
+      );
+    }
+
+    redirect(
+      buildCommentErrorPath({
+        basePath: "/feed",
+        commentError: "constitution-violation",
+        suspendedUntil: moderationResult.suspendedUntil,
+        violationCount: moderationResult.violationCount,
+      }),
+    );
   }
 
   const createResult = await createPostComment({
@@ -224,7 +292,7 @@ export const addPostCommentAction = async (formData: FormData): Promise<void> =>
   });
 
   if (!createResult.ok) {
-    redirect(`/feed?commentError=${createResult.error}`);
+    redirect(buildCommentErrorPath({ basePath: "/feed", commentError: createResult.error }));
   }
 
   revalidatePath("/feed");
@@ -238,7 +306,44 @@ export const addPostCommentFromPostPageAction = async (formData: FormData): Prom
   const parsed = parseCommentSubmission(formData);
 
   if (!parsed) {
-    redirect(`${fallbackPath}?commentError=invalid-input`);
+    redirect(buildCommentErrorPath({ basePath: fallbackPath, commentError: "invalid-input" }));
+  }
+
+  const moderationResult = await moderateCommentSubmission({
+    userId: user.id,
+    postId: parsed.postId,
+    content: parsed.content,
+    format: parsed.format,
+  });
+
+  if (!moderationResult.ok) {
+    if (moderationResult.error === "account-banned") {
+      redirect("/banned");
+    }
+
+    if (moderationResult.error === "post-not-found") {
+      redirect(buildCommentErrorPath({ basePath: fallbackPath, commentError: "post-not-found" }));
+    }
+
+    if (moderationResult.error === "comment-suspended") {
+      redirect(
+        buildCommentErrorPath({
+          basePath: fallbackPath,
+          commentError: "comment-suspended",
+          suspendedUntil: moderationResult.suspendedUntil,
+          violationCount: moderationResult.violationCount,
+        }),
+      );
+    }
+
+    redirect(
+      buildCommentErrorPath({
+        basePath: fallbackPath,
+        commentError: "constitution-violation",
+        suspendedUntil: moderationResult.suspendedUntil,
+        violationCount: moderationResult.violationCount,
+      }),
+    );
   }
 
   const createResult = await createPostComment({
@@ -250,7 +355,7 @@ export const addPostCommentFromPostPageAction = async (formData: FormData): Prom
   });
 
   if (!createResult.ok) {
-    redirect(`${fallbackPath}?commentError=${createResult.error}`);
+    redirect(buildCommentErrorPath({ basePath: fallbackPath, commentError: createResult.error }));
   }
 
   revalidatePath("/feed");

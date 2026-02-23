@@ -19,6 +19,10 @@ export default auth((request) => {
     return NextResponse.redirect(loginUrl);
   }
 
+  if (sessionUser.accountBannedAt) {
+    return NextResponse.redirect(new URL("/banned", request.nextUrl));
+  }
+
   if (!sessionUser.manifestoAcceptedAt) {
     return NextResponse.redirect(new URL("/manifesto", request.nextUrl));
   }

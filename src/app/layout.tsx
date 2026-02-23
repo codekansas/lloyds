@@ -50,6 +50,7 @@ export default async function RootLayout({
         <TopNav
           isAuthed={Boolean(user)}
           acceptedManifesto={Boolean(user?.manifestoAcceptedAt)}
+          isBanned={Boolean(user?.accountBannedAt)}
           userName={user?.name}
         />
         <main className="lloyds-main">{children}</main>
