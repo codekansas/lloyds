@@ -287,6 +287,15 @@ test("builds DAG edges when a comment references multiple parent comments", asyn
   await page.getByRole("button", { name: "Post Comment" }).click();
 
   await expect(page).toHaveURL(new RegExp(`/feed/${post.id}/comments\\?commented=1`));
+  const firstReferenceChip = page
+    .locator(".comment-link-row", { hasText: "Replies to" })
+    .first()
+    .locator(".comment-ref-chip")
+    .first();
+  const firstReferenceTooltip = firstReferenceChip.locator(".comment-ref-tooltip");
+  await expect(firstReferenceTooltip).not.toBeVisible();
+  await firstReferenceChip.hover();
+  await expect(firstReferenceTooltip).toBeVisible();
 
   const savedComment = await prismaClient.postComment.findFirstOrThrow({
     where: {
@@ -331,6 +340,9 @@ test("supports rich text mode when posting comments", async ({ page, baseURL }) 
   await page.goto(`/feed/${post.id}/comments`);
   await page.getByRole("tab", { name: "Rich Text" }).click();
   await page.locator(".comment-rich-editor").fill("Rich text composition path.");
+  await page.getByRole("tab", { name: "Markdown" }).click();
+  await expect(page.locator(`#comment-${post.id}`)).toHaveValue("Rich text composition path.");
+  await page.getByRole("tab", { name: "Rich Text" }).click();
   await page.getByRole("button", { name: "Post Comment" }).click();
 
   await expect(page).toHaveURL(new RegExp(`/feed/${post.id}/comments\\?commented=1`));
@@ -339,12 +351,12 @@ test("supports rich text mode when posting comments", async ({ page, baseURL }) 
     where: {
       postId: post.id,
       authorId: user.id,
-      format: "RICH_TEXT",
+      format: "MARKDOWN",
     },
     orderBy: {
       createdAt: "desc",
     },
   });
 
-  expect(savedComment.content).toContain("Rich text composition path.");
+  expect(savedComment.content).toBe("Rich text composition path.");
 });
