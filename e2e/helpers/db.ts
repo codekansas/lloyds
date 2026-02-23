@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 
-import { PrismaClient, type AvailabilityMode, type PostSourceType, type SummaryStatus, type User } from "@prisma/client";
+import {
+  PrismaClient,
+  type ArticleQualityRating,
+  type AvailabilityMode,
+  type PostSourceType,
+  type SummaryStatus,
+  type User,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -23,9 +30,13 @@ type SeedPostInput = {
   summaryStatus?: SummaryStatus;
   summaryBullets?: string[];
   summaryReadSeconds?: number;
+  qualityRating?: ArticleQualityRating | null;
+  qualityRationale?: string | null;
   excerpt?: string | null;
   feedSourceId?: string | null;
   submittedById?: string | null;
+  publishedAt?: Date | null;
+  createdAt?: Date;
 };
 
 type SeedAvailabilityInput = {
@@ -106,10 +117,13 @@ export const seedPost = async (input: SeedPostInput) => {
       summaryStatus: input.summaryStatus ?? "COMPLETE",
       summaryBullets: input.summaryBullets ?? [],
       summaryReadSeconds: input.summaryReadSeconds ?? 20,
+      qualityRating: input.qualityRating ?? null,
+      qualityRationale: input.qualityRationale ?? null,
       excerpt: input.excerpt ?? null,
       feedSourceId: input.feedSourceId ?? null,
       submittedById: input.submittedById ?? null,
-      publishedAt: new Date(),
+      publishedAt: input.publishedAt ?? input.createdAt ?? new Date(),
+      createdAt: input.createdAt,
     },
   });
 };

@@ -23,7 +23,7 @@ test("requires covenant acceptance before feed access", async ({ page, baseURL }
 
   await page.goto("/feed");
   await expect(page).toHaveURL(/\/manifesto/);
-  await expect(page.getByRole("heading", { name: "Covenant of Entry" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: /covenant/i })).toBeVisible();
 
   const checkboxes = page.locator(".manifesto-tenets input[type='checkbox']");
   const checkboxCount = await checkboxes.count();

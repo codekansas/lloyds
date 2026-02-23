@@ -1,5 +1,8 @@
 import { formatDistanceToNow } from "date-fns";
+import type { ArticleQualityRating } from "@prisma/client";
 import Link from "next/link";
+
+import { qualityLabelFromRating } from "@/lib/article-quality";
 
 const summaryPreviewBulletCount = 2;
 const excerptPreviewCharacterCount = 220;
@@ -46,6 +49,8 @@ type FeedPostCardProps = {
   summaryReadSeconds: number | null;
   summaryStatus: "PENDING" | "COMPLETE" | "FAILED";
   excerpt: string | null;
+  qualityRating: ArticleQualityRating | null;
+  qualityRationale: string | null;
   commentsCount: number;
 };
 
@@ -60,6 +65,8 @@ export const FeedPostCard = ({
   summaryReadSeconds,
   summaryStatus,
   excerpt,
+  qualityRating,
+  qualityRationale,
   commentsCount,
 }: FeedPostCardProps) => {
   const ageLabel = publishedAt
@@ -70,11 +77,16 @@ export const FeedPostCard = ({
   const previewBullets = summaryBullets.slice(0, summaryPreviewBulletCount);
   const hiddenBullets = summaryBullets.slice(summaryPreviewBulletCount);
   const excerptPreview = buildExcerptPreview(excerpt);
+  const qualityLabel = qualityLabelFromRating(qualityRating);
+  const qualityClassName = qualityRating ? `quality-pill quality-pill-${qualityRating.toLowerCase()}` : "quality-pill";
 
   return (
     <article className="feed-card" data-testid={`feed-post-${postId}`}>
       <header className="feed-card-header">
         <div className="feed-card-meta">
+          <span className={qualityClassName} title={qualityRationale ?? undefined}>
+            {qualityLabel}
+          </span>
           <span>{sourceLabel}</span>
           <span>{ageLabel}</span>
           {domain ? <span>{domain}</span> : null}

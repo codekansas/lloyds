@@ -413,6 +413,32 @@ button {
   gap: 0.85rem;
 }
 
+.feed-window-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.feed-window-pill {
+  font-family: var(--font-utility), monospace;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--line);
+  background: var(--surface-panel);
+  padding: 0.22rem 0.46rem;
+  text-decoration: none;
+}
+
+.feed-window-pill:hover {
+  background: var(--surface-button-secondary-hover);
+}
+
+.feed-window-pill-active {
+  border-color: var(--line-accent);
+  background: var(--surface-accent-pill);
+}
+
 .feed-card {
   border: 1px solid var(--line);
   background: var(--surface-card);
@@ -455,6 +481,33 @@ button {
   border: 1px solid var(--line);
   padding: 0.24rem 0.44rem;
   background: var(--surface-chip);
+}
+
+.feed-card-meta .quality-pill {
+  border-color: var(--line-accent);
+}
+
+.feed-card-meta .quality-pill-common_rumour {
+  background: color-mix(in srgb, var(--surface-error) 55%, var(--surface-chip));
+  border-color: color-mix(in srgb, var(--line-error) 70%, var(--line));
+}
+
+.feed-card-meta .quality-pill-merchants_word {
+  background: color-mix(in srgb, var(--surface-accent-pill) 45%, var(--surface-chip));
+}
+
+.feed-card-meta .quality-pill-captains_account {
+  background: color-mix(in srgb, var(--surface-info) 52%, var(--surface-chip));
+}
+
+.feed-card-meta .quality-pill-underwriters_confidence {
+  background: color-mix(in srgb, var(--surface-success) 55%, var(--surface-chip));
+  border-color: color-mix(in srgb, var(--line-success) 65%, var(--line));
+}
+
+.feed-card-meta .quality-pill-lloyds_assurance {
+  background: color-mix(in srgb, var(--surface-accent-pill) 70%, var(--surface-chip));
+  border-color: color-mix(in srgb, var(--line-accent) 70%, var(--line));
 }
 
 .feed-summary {

@@ -70,10 +70,91 @@ test("renders ranked feed entries with AI bullets", async ({ page, baseURL }) =>
   await expect(postCard.getByText(summaryBullets[2])).toBeHidden();
   await expect(postCard.getByText("18s read")).toBeVisible();
 
-  await postCard.getByRole("button", { name: "See more..." }).click();
+  const summaryToggle = postCard.locator(".feed-summary-more summary");
+  await summaryToggle.click();
   await expect(postCard.getByText(summaryBullets[2])).toBeVisible();
-  await postCard.getByRole("button", { name: "Show less" }).click();
+  await summaryToggle.click();
   await expect(postCard.getByText(summaryBullets[2])).toBeHidden();
+});
+
+test("defaults to last 24h and orders feed by constitutional quality rating", async ({ page, baseURL }) => {
+  if (!baseURL) {
+    throw new Error("baseURL is not configured for Playwright.");
+  }
+
+  await loginAsUser(page.context(), {
+    baseUrl: baseURL,
+    manifestoAccepted: true,
+    name: "Quality Reader",
+  });
+
+  const source = await createFeedSource("https://e2e-quality.local/feed.xml", "Quality Source");
+  const now = Date.now();
+
+  const highSignalTitle = "Forecasting with error bars and postmortems";
+  const lowSignalTitle = "Hot takes with no sourcing";
+  const olderTitle = "Three-day old archival analysis";
+
+  await seedPost({
+    title: highSignalTitle,
+    url: "https://example.com/forecasting-postmortems",
+    canonicalUrl: "https://example.com/forecasting-postmortems",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    qualityRating: "UNDERWRITERS_CONFIDENCE",
+    qualityRationale: "Cites sources, explores uncertainty, and translates findings into operational decisions.",
+    summaryBullets: [
+      "The author compares baseline forecasts against calibrated intervals and reports error decomposition.",
+      "Operational implications are explicit, including where confidence should remain low.",
+    ],
+    createdAt: new Date(now - 2 * 60 * 60 * 1000),
+  });
+
+  await seedPost({
+    title: lowSignalTitle,
+    url: "https://example.com/hot-takes",
+    canonicalUrl: "https://example.com/hot-takes",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    qualityRating: "COMMON_RUMOUR",
+    qualityRationale: "Claims are mostly unsupported and arguments are thin.",
+    summaryBullets: [
+      "Broad claims are made without verifiable evidence or reproducible data.",
+      "Counterarguments are dismissed rather than addressed with substance.",
+    ],
+    createdAt: new Date(now - 20 * 60 * 1000),
+  });
+
+  await seedPost({
+    title: olderTitle,
+    url: "https://example.com/old-analysis",
+    canonicalUrl: "https://example.com/old-analysis",
+    sourceType: "CURATED_RSS",
+    feedSourceId: source.id,
+    summaryStatus: "COMPLETE",
+    qualityRating: "LLOYDS_ASSURANCE",
+    qualityRationale: "Rare archival quality analysis with strong sourcing and durable relevance.",
+    summaryBullets: [
+      "Long-horizon analysis with transparent methods and external validation.",
+      "Directly useful for strategic planning under uncertainty.",
+    ],
+    createdAt: new Date(now - 52 * 60 * 60 * 1000),
+  });
+
+  await page.goto("/feed");
+
+  await expect(page.getByRole("link", { name: highSignalTitle })).toBeVisible();
+  await expect(page.getByRole("link", { name: lowSignalTitle })).toBeVisible();
+  await expect(page.getByRole("link", { name: olderTitle })).toHaveCount(0);
+
+  const firstCard = page.locator(".feed-card").first();
+  await expect(firstCard.getByRole("link", { name: highSignalTitle })).toBeVisible();
+
+  await page.getByRole("link", { name: "All time" }).click();
+  await expect(page).toHaveURL(/window=all/);
+  await expect(page.getByRole("link", { name: olderTitle })).toBeVisible();
 });
 
 test("submits a new post and stores it as a user submission", async ({ page, baseURL }) => {

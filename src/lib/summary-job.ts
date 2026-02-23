@@ -40,6 +40,10 @@ export const processPendingSummaries = async (batchSize = 12): Promise<SummaryJo
           summaryReadSeconds: summary.readSeconds,
           summaryModel: summary.model,
           summaryGeneratedAt: new Date(),
+          qualityRating: summary.qualityRating,
+          qualityRationale: summary.qualityRationale,
+          qualityModel: summary.model,
+          qualityScoredAt: new Date(),
           summaryError: null,
         },
       });

@@ -24,6 +24,14 @@ enum SummaryStatus {
   FAILED
 }
 
+enum ArticleQualityRating {
+  COMMON_RUMOUR
+  MERCHANTS_WORD
+  CAPTAINS_ACCOUNT
+  UNDERWRITERS_CONFIDENCE
+  LLOYDS_ASSURANCE
+}
+
 enum CommentFormat {
   MARKDOWN
   RICH_TEXT
@@ -151,6 +159,10 @@ model Post {
   summaryModel       String?
   summaryGeneratedAt DateTime?
   summaryError       String?        @db.Text
+  qualityRating      ArticleQualityRating?
+  qualityRationale   String?        @db.Text
+  qualityModel       String?
+  qualityScoredAt    DateTime?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   submittedBy        User?          @relation("PostSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
@@ -161,6 +173,7 @@ model Post {
   @@index([publishedAt])
   @@index([createdAt])
   @@index([summaryStatus, createdAt])
+  @@index([qualityRating, createdAt])
   @@index([feedSourceId])
 }
 
