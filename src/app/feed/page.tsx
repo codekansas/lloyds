@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Flash } from "@/components/flash";
 import { FeedPostCard } from "@/components/feed-post-card";
 import { requireManifestoUser } from "@/lib/auth-guards";
+import { constitutionGistUrl } from "@/lib/constitution";
 import { getRankedFeedPosts, maxFeedDayOffset } from "@/lib/feed";
 import { prisma } from "@/lib/prisma";
 import { ensureCuratedFeedSources } from "@/lib/seed-curated";
@@ -174,6 +175,11 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
               <li>Quality tiers follow the Lloyd&apos;s Constitution from Common Rumour to The Lloyd&apos;s Assurance.</li>
               <li>Open the source article for full context before strong judgment.</li>
             </ul>
+            <div className="house-rules-action">
+              <a href={constitutionGistUrl} target="_blank" rel="noreferrer noopener" className="lloyds-button-secondary">
+                Read Constitution
+              </a>
+            </div>
           </section>
 
           <section className="panel">

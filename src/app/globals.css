@@ -65,73 +65,6 @@
   --button-primary-text: #fff;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --ink: #f3e7d5;
-    --ink-soft: #cfbfa6;
-    --paper: #120d09;
-    --paper-deep: #1e150f;
-    --accent: #e0a463;
-    --accent-bright: #f2bb79;
-    --line: rgba(243, 231, 213, 0.24);
-    --line-soft: rgba(243, 231, 213, 0.18);
-    --line-faint: rgba(243, 231, 213, 0.1);
-    --line-focus: rgba(224, 164, 99, 0.78);
-    --line-accent: rgba(224, 164, 99, 0.42);
-    --line-accent-strong: rgba(224, 164, 99, 0.58);
-    --line-accent-stronger: rgba(224, 164, 99, 0.72);
-    --line-success: rgba(110, 212, 150, 0.36);
-    --line-success-strong: rgba(110, 212, 150, 0.48);
-    --line-error: rgba(255, 141, 141, 0.4);
-    --ok: #6ed496;
-    --error: #ff8d8d;
-    --bg-glow: rgba(117, 82, 48, 0.33);
-    --bg-mid: rgba(30, 21, 15, 0.95);
-    --bg-end: rgba(12, 9, 7, 0.98);
-    --bg-overlay: rgba(0, 0, 0, 0.42);
-    --surface-nav-top: rgba(26, 19, 14, 0.96);
-    --surface-nav-bottom: rgba(26, 19, 14, 0.84);
-    --surface-nav-link: rgba(58, 42, 30, 0.58);
-    --surface-masthead: rgba(52, 38, 27, 0.64);
-    --surface-panel: rgba(31, 23, 17, 0.8);
-    --surface-input: rgba(38, 28, 21, 0.9);
-    --surface-card: rgba(34, 25, 18, 0.9);
-    --surface-chip: rgba(49, 36, 26, 0.82);
-    --surface-comment-card: rgba(39, 29, 22, 0.88);
-    --surface-comment-anchor: rgba(57, 42, 30, 0.72);
-    --surface-parent-preview: rgba(28, 21, 16, 0.86);
-    --surface-code: rgba(243, 231, 213, 0.12);
-    --surface-toggle: rgba(60, 44, 31, 0.72);
-    --surface-rich-editor: rgba(36, 27, 20, 0.92);
-    --surface-toolbar-button: rgba(57, 42, 30, 0.84);
-    --surface-suggestion: rgba(31, 23, 17, 0.96);
-    --surface-settings-card: rgba(40, 30, 22, 0.86);
-    --surface-match-card: rgba(40, 30, 22, 0.82);
-    --surface-info: rgba(58, 42, 30, 0.58);
-    --surface-success: rgba(110, 212, 150, 0.18);
-    --surface-error: rgba(255, 141, 141, 0.2);
-    --surface-accent-soft: rgba(224, 164, 99, 0.2);
-    --surface-accent: rgba(224, 164, 99, 0.3);
-    --surface-accent-pill: rgba(224, 164, 99, 0.24);
-    --surface-button-secondary-hover: rgba(224, 164, 99, 0.16);
-    --shadow-masthead: 0 18px 50px rgba(0, 0, 0, 0.36);
-    --shadow-panel: 0 10px 38px rgba(0, 0, 0, 0.28);
-    --shadow-focus-ring: 0 0 0 3px rgba(224, 164, 99, 0.24);
-    --shadow-comment-target: 0 0 0 2px rgba(224, 164, 99, 0.3);
-    --thread-line: rgba(224, 164, 99, 0.55);
-    --comment-target-line: rgba(224, 164, 99, 0.78);
-    --placeholder: rgba(207, 191, 166, 0.85);
-    --selection-bg: rgba(224, 164, 99, 0.38);
-    --selection-text: #fffaf0;
-    --button-primary-from: #f0b371;
-    --button-primary-to: #cc823a;
-    --button-primary-hover-from: #f6c088;
-    --button-primary-hover-to: #da9150;
-    --button-primary-text: #22160d;
-  }
-}
-
 @theme inline {
   --color-background: var(--paper);
   --color-foreground: var(--ink);
@@ -550,9 +483,23 @@ button {
   margin-top: 0.5rem;
 }
 
+.feed-summary-more[open] {
+  display: flex;
+  flex-direction: column;
+}
+
 .feed-toggle-button {
   text-decoration: none;
   list-style: none;
+}
+
+.feed-summary-more[open] .feed-toggle-button {
+  order: 2;
+  margin-top: 0.5rem;
+}
+
+.feed-summary-more[open] > :not(summary) {
+  order: 1;
 }
 
 .feed-toggle-button::-webkit-details-marker {
@@ -1122,11 +1069,16 @@ button {
 
 .list-clean {
   margin: 0;
-  padding-left: 1.2rem;
+  padding-left: 0;
+  list-style: none;
 }
 
 .list-clean li {
   margin-bottom: 0.32rem;
+}
+
+.house-rules-action {
+  margin-top: 0.9rem;
 }
 
 .button-row {

@@ -2,12 +2,20 @@ export const constitutionGistId = "1f5b9bd7e4ca1332f667f0e04323ee5b";
 export const constitutionGistUrl = `https://gist.github.com/codekansas/${constitutionGistId}`;
 const constitutionGistApiUrl = `https://api.github.com/gists/${constitutionGistId}`;
 
-const cacheTtlMs = 60 * 60 * 1000;
+const successfulFetchCacheTtlMs = 24 * 60 * 60 * 1000;
+const fallbackCacheTtlMs = 60 * 60 * 1000;
 
 type CachedConstitution = {
   text: string;
   fetchedAt: number;
   source: "gist" | "fallback";
+};
+
+const cacheTtlMsForSource = (source: CachedConstitution["source"]): number => {
+  if (source === "gist") {
+    return successfulFetchCacheTtlMs;
+  }
+  return fallbackCacheTtlMs;
 };
 
 let cachedConstitution: CachedConstitution | null = null;
@@ -180,7 +188,7 @@ export const getConstitutionText = async (): Promise<{
   referenceUrl: string;
 }> => {
   const now = Date.now();
-  if (cachedConstitution && now - cachedConstitution.fetchedAt < cacheTtlMs) {
+  if (cachedConstitution && now - cachedConstitution.fetchedAt < cacheTtlMsForSource(cachedConstitution.source)) {
     return {
       text: cachedConstitution.text,
       source: cachedConstitution.source,
