@@ -41,6 +41,218 @@ type CommentComposerProps = {
 
 const minCommentCharacters = 2;
 
+const escapeHtml = (value: string): string => {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+};
+
+const normalizeLinkHref = (value: string): string | null => {
+  const trimmedValue = value.trim();
+
+  if (/^(https?:\/\/|mailto:)/i.test(trimmedValue)) {
+    return trimmedValue;
+  }
+
+  return null;
+};
+
+const renderInlineMarkdownToHtml = (value: string): string => {
+  const escaped = escapeHtml(value);
+
+  return escaped
+    .replace(/\[([^\]]+)]\(([^)]+)\)/g, (_match, label: string, href: string) => {
+      const nextHref = normalizeLinkHref(href.replaceAll("&amp;", "&"));
+      return nextHref
+        ? `<a href="${escapeHtml(nextHref)}" rel="noreferrer noopener" target="_blank">${label}</a>`
+        : label;
+    })
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/&lt;u&gt;([\s\S]+?)&lt;\/u&gt;/g, "<u>$1</u>");
+};
+
+const isQuoteLine = (value: string): boolean => {
+  return /^>\s?/.test(value);
+};
+
+const isUnorderedListLine = (value: string): boolean => {
+  return /^-\s+/.test(value);
+};
+
+const isOrderedListLine = (value: string): boolean => {
+  return /^\d+\.\s+/.test(value);
+};
+
+const isBlockBoundaryLine = (value: string): boolean => {
+  return value.trim().length === 0 || isQuoteLine(value) || isUnorderedListLine(value) || isOrderedListLine(value);
+};
+
+const markdownToRichHtml = (value: string): string => {
+  const normalizedLines = value.replaceAll("\r\n", "\n").split("\n");
+  const htmlParts: string[] = [];
+  let idx = 0;
+
+  while (idx < normalizedLines.length) {
+    const currentLine = normalizedLines[idx] ?? "";
+
+    if (currentLine.trim().length === 0) {
+      idx += 1;
+      continue;
+    }
+
+    if (isQuoteLine(currentLine)) {
+      const quoteLines: string[] = [];
+
+      while (idx < normalizedLines.length && isQuoteLine(normalizedLines[idx] ?? "")) {
+        quoteLines.push((normalizedLines[idx] ?? "").replace(/^>\s?/, ""));
+        idx += 1;
+      }
+
+      htmlParts.push(
+        `<blockquote>${quoteLines
+          .map((line) => `<p>${line.length > 0 ? renderInlineMarkdownToHtml(line) : "<br>"}</p>`)
+          .join("")}</blockquote>`,
+      );
+      continue;
+    }
+
+    if (isUnorderedListLine(currentLine) || isOrderedListLine(currentLine)) {
+      const listKind = isOrderedListLine(currentLine) ? "ol" : "ul";
+      const listItems: string[] = [];
+
+      while (idx < normalizedLines.length) {
+        const listLine = normalizedLines[idx] ?? "";
+        const matchesCurrentKind = listKind === "ol" ? isOrderedListLine(listLine) : isUnorderedListLine(listLine);
+
+        if (!matchesCurrentKind) {
+          break;
+        }
+
+        const itemText =
+          listKind === "ol" ? listLine.replace(/^\d+\.\s+/, "") : listLine.replace(/^-\s+/, "");
+        listItems.push(`<li>${renderInlineMarkdownToHtml(itemText)}</li>`);
+        idx += 1;
+      }
+
+      htmlParts.push(`<${listKind}>${listItems.join("")}</${listKind}>`);
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+
+    while (idx < normalizedLines.length && !isBlockBoundaryLine(normalizedLines[idx] ?? "")) {
+      paragraphLines.push(normalizedLines[idx] ?? "");
+      idx += 1;
+    }
+
+    htmlParts.push(`<p>${paragraphLines.map((line) => renderInlineMarkdownToHtml(line)).join("<br>")}</p>`);
+  }
+
+  return htmlParts.join("");
+};
+
+const serializeNodeListToMarkdown = (nodes: NodeListOf<ChildNode> | ChildNode[]): string => {
+  return Array.from(nodes)
+    .map((node) => serializeNodeToMarkdown(node))
+    .join("");
+};
+
+const serializeNodeToMarkdown = (node: ChildNode): string => {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return (node.textContent ?? "").replaceAll("\u00a0", " ");
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return "";
+  }
+
+  const element = node as HTMLElement;
+  const tagName = element.tagName.toLowerCase();
+  const childMarkdown = serializeNodeListToMarkdown(element.childNodes);
+
+  if (tagName === "br") {
+    return "\n";
+  }
+
+  if (tagName === "strong" || tagName === "b") {
+    return `**${childMarkdown}**`;
+  }
+
+  if (tagName === "em" || tagName === "i") {
+    return `*${childMarkdown}*`;
+  }
+
+  if (tagName === "u") {
+    return `<u>${childMarkdown}</u>`;
+  }
+
+  if (tagName === "code") {
+    if (element.parentElement?.tagName.toLowerCase() === "pre") {
+      return childMarkdown;
+    }
+
+    return `\`${childMarkdown}\``;
+  }
+
+  if (tagName === "pre") {
+    const codeContent = (element.textContent ?? "").replaceAll("\u00a0", " ").trimEnd();
+    return codeContent.length > 0 ? `\`\`\`\n${codeContent}\n\`\`\`\n\n` : "";
+  }
+
+  if (tagName === "a") {
+    const href = normalizeLinkHref(element.getAttribute("href") ?? "");
+    const linkLabel = childMarkdown.trim();
+    return href ? `[${linkLabel || href}](${href})` : linkLabel;
+  }
+
+  if (tagName === "ul") {
+    const listItems = Array.from(element.children)
+      .filter((child) => child.tagName.toLowerCase() === "li")
+      .map((item) => `- ${serializeNodeListToMarkdown(item.childNodes).trim()}`);
+    return listItems.length > 0 ? `${listItems.join("\n")}\n\n` : "";
+  }
+
+  if (tagName === "ol") {
+    const listItems = Array.from(element.children)
+      .filter((child) => child.tagName.toLowerCase() === "li")
+      .map((item, itemIdx) => `${itemIdx + 1}. ${serializeNodeListToMarkdown(item.childNodes).trim()}`);
+    return listItems.length > 0 ? `${listItems.join("\n")}\n\n` : "";
+  }
+
+  if (tagName === "blockquote") {
+    const quoteLines = childMarkdown
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => `> ${line}`);
+    return quoteLines.length > 0 ? `${quoteLines.join("\n")}\n\n` : "";
+  }
+
+  if (tagName === "p" || tagName === "div") {
+    const paragraph = childMarkdown.trim();
+    return paragraph.length > 0 ? `${paragraph}\n\n` : "";
+  }
+
+  return childMarkdown;
+};
+
+const richHtmlToMarkdown = (value: string): string => {
+  if (typeof window === "undefined") {
+    return value.trim();
+  }
+
+  const parser = new DOMParser();
+  const parsedDocument = parser.parseFromString(value, "text/html");
+  const markdown = serializeNodeListToMarkdown(parsedDocument.body.childNodes);
+
+  return markdown.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+};
+
 const detectTriggerMatch = (value: string, cursor: number): TriggerMatch | null => {
   const beforeCursor = value.slice(0, cursor);
   const commentMatch = beforeCursor.match(/(^|\s)>>([0-9]{0,4})$/);
@@ -169,26 +381,21 @@ const replaceRichTextRange = ({
   selection?.addRange(range);
 };
 
-const stripRichText = (value: string): string => {
-  return value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
-};
-
 export const CommentComposer = ({ postId, commentOptions, userOptions }: CommentComposerProps) => {
   const [mode, setMode] = useState<CommentFormatValue>("MARKDOWN");
-  const [markdownContent, setMarkdownContent] = useState("");
-  const [richTextContent, setRichTextContent] = useState("");
+  const [content, setContent] = useState("");
+  const [richTextDraft, setRichTextDraft] = useState("");
   const [selectedParentIds, setSelectedParentIds] = useState<string[]>([]);
   const [activeTrigger, setActiveTrigger] = useState<TriggerMatch | null>(null);
   const [highlightedSuggestionIdx, setHighlightedSuggestionIdx] = useState(0);
   const markdownInputRef = useRef<HTMLTextAreaElement>(null);
   const richEditorRef = useRef<HTMLDivElement>(null);
 
-  const contentValue = mode === "MARKDOWN" ? markdownContent : richTextContent;
   const commentOptionsById = useMemo(() => new Map(commentOptions.map((option) => [option.id, option])), [commentOptions]);
   const selectedParents = selectedParentIds
     .map((parentId) => commentOptionsById.get(parentId))
     .filter((option): option is CommentReferenceOption => Boolean(option));
-  const plainTextLength = mode === "MARKDOWN" ? markdownContent.trim().length : stripRichText(richTextContent).length;
+  const plainTextLength = content.trim().length;
   const canSubmit = plainTextLength >= minCommentCharacters;
 
   const suggestionOptions = useMemo<SuggestionOption[]>(() => {
@@ -234,18 +441,16 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
   }, [activeTrigger, commentOptions, userOptions]);
 
   useEffect(() => {
-    if (mode !== "RICH_TEXT") {
+    const editor = richEditorRef.current;
+
+    if (mode !== "RICH_TEXT" || !editor) {
       return;
     }
 
-    if (!richEditorRef.current) {
-      return;
+    if (editor.innerHTML !== richTextDraft) {
+      editor.innerHTML = richTextDraft;
     }
-
-    if (richEditorRef.current.innerHTML !== richTextContent) {
-      richEditorRef.current.innerHTML = richTextContent;
-    }
-  }, [mode, richTextContent]);
+  }, [mode, richTextDraft]);
 
   const updateTriggerState = (nextTrigger: TriggerMatch | null): void => {
     setActiveTrigger((previousTrigger) => {
@@ -294,7 +499,9 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
       return;
     }
 
-    setRichTextContent(richEditorRef.current.innerHTML);
+    const nextHtml = richEditorRef.current.innerHTML;
+    setRichTextDraft(nextHtml);
+    setContent(richHtmlToMarkdown(nextHtml));
   };
 
   const upsertParentId = (parentId: string): void => {
@@ -317,14 +524,14 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
 
     if (mode === "MARKDOWN" && markdownInputRef.current) {
       const nextValue = replaceRange({
-        value: markdownContent,
+        value: content,
         start: activeTrigger.start,
         end: activeTrigger.end,
         replacement: replacementWithPadding,
       });
 
       const nextCursor = activeTrigger.start + replacementWithPadding.length;
-      setMarkdownContent(nextValue);
+      setContent(nextValue);
       setActiveTrigger(null);
 
       requestAnimationFrame(() => {
@@ -401,8 +608,8 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
   return (
     <div className="comment-composer">
       <input type="hidden" name="postId" value={postId} />
-      <input type="hidden" name="content" value={contentValue} />
-      <input type="hidden" name="format" value={mode} />
+      <input type="hidden" name="content" value={content} />
+      <input type="hidden" name="format" value="MARKDOWN" />
       <input type="hidden" name="parentIds" value={JSON.stringify(selectedParentIds)} />
 
       <div className="comment-compose-header">
@@ -414,6 +621,12 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
             aria-selected={mode === "MARKDOWN"}
             className={mode === "MARKDOWN" ? "comment-format-toggle-active" : undefined}
             onClick={() => {
+              if (mode === "RICH_TEXT" && richEditorRef.current) {
+                const nextHtml = richEditorRef.current.innerHTML;
+                setRichTextDraft(nextHtml);
+                setContent(richHtmlToMarkdown(nextHtml));
+              }
+
               setMode("MARKDOWN");
               setActiveTrigger(null);
             }}
@@ -426,6 +639,7 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
             aria-selected={mode === "RICH_TEXT"}
             className={mode === "RICH_TEXT" ? "comment-format-toggle-active" : undefined}
             onClick={() => {
+              setRichTextDraft(markdownToRichHtml(content));
               setMode("RICH_TEXT");
               setActiveTrigger(null);
             }}
@@ -461,9 +675,9 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
             ref={markdownInputRef}
             id={`comment-${postId}`}
             name="comment-markdown-draft"
-            value={markdownContent}
+            value={content}
             onChange={(event) => {
-              setMarkdownContent(event.target.value);
+              setContent(event.target.value);
               updateMarkdownTrigger(event.target);
             }}
             onKeyDown={handleSuggestionNavigation}

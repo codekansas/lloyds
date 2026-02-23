@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react";
-
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -28,7 +26,6 @@ type CommentViewModel = {
   preview: string;
   parentIds: string[];
   childIds: string[];
-  depth: number;
 };
 
 const commentErrorCopy: Record<string, string> = {
@@ -37,7 +34,6 @@ const commentErrorCopy: Record<string, string> = {
   "post-not-found": "Unable to find that post. Please return to the feed and try again.",
 };
 
-const maxDisplayDepth = 8;
 const previewCharacterLimit = 160;
 
 const toHandle = (value: string): string => {
@@ -133,7 +129,6 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
     : "recently added";
 
   const commentNumberById = new Map(post.comments.map((comment, idx) => [comment.id, idx + 1]));
-  const depthByCommentId = new Map<string, number>();
   const commentViewModels: CommentViewModel[] = post.comments.map((comment) => {
     const parentIds = [...new Set(comment.parentEdges.map((edge) => edge.parentCommentId))].filter((parentId) =>
       commentNumberById.has(parentId),
@@ -143,10 +138,6 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
       .sort((leftId, rightId) => {
         return (commentNumberById.get(leftId) ?? 0) - (commentNumberById.get(rightId) ?? 0);
       });
-    const parentDepths = parentIds.map((parentId) => depthByCommentId.get(parentId) ?? 0);
-    const depth = parentDepths.length > 0 ? Math.min(Math.max(...parentDepths) + 1, maxDisplayDepth) : 0;
-
-    depthByCommentId.set(comment.id, depth);
 
     const plainText = getCommentPlainText({
       content: comment.content,
@@ -168,7 +159,6 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
       preview: truncate(plainText),
       parentIds,
       childIds,
-      depth,
     };
   });
   const commentViewById = new Map(commentViewModels.map((comment) => [comment.id, comment]));
@@ -236,15 +226,8 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
         ) : (
           <ol className="comment-lattice">
             {commentViewModels.map((comment) => {
-              const parentPreviewItems = comment.parentIds
-                .map((parentId) => commentViewById.get(parentId))
-                .filter((parentComment): parentComment is CommentViewModel => Boolean(parentComment));
-              const style = {
-                "--comment-depth": comment.depth,
-              } as CSSProperties;
-
               return (
-                <li key={comment.id} id={`comment-${comment.id}`} className="comment-lattice-item" style={style}>
+                <li key={comment.id} id={`comment-${comment.id}`} className="comment-lattice-item">
                   <article className="comment-card">
                     <header className="comment-card-header">
                       <a href={`#comment-${comment.id}`} className="comment-anchor">
@@ -258,25 +241,16 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
                       <div className="comment-link-row">
                         <strong>Replies to</strong>
                         {comment.parentIds.map((parentId) => {
-                          const parentNumber = commentNumberById.get(parentId);
-                          return parentNumber ? (
+                          const parentComment = commentViewById.get(parentId);
+
+                          return parentComment ? (
                             <a key={parentId} href={`#comment-${parentId}`} className="comment-ref-chip">
-                              &gt;&gt;{parentNumber}
+                              &gt;&gt;{parentComment.number}
+                              <span className="comment-ref-tooltip">{parentComment.preview}</span>
                             </a>
                           ) : null;
                         })}
                       </div>
-                    ) : null}
-
-                    {parentPreviewItems.length > 0 ? (
-                      <ul className="comment-parent-previews">
-                        {parentPreviewItems.map((parentComment) => (
-                          <li key={parentComment.id}>
-                            <a href={`#comment-${parentComment.id}`}>&gt;&gt;{parentComment.number}</a>
-                            <p>{parentComment.preview}</p>
-                          </li>
-                        ))}
-                      </ul>
                     ) : null}
 
                     <div className="comment-body" dangerouslySetInnerHTML={{ __html: comment.renderedHtml }} />
