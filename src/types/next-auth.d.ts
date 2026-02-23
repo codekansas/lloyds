@@ -5,10 +5,16 @@ declare module "next-auth" {
     user: {
       id: string;
       manifestoAcceptedAt: Date | null;
+      commentSuspendedUntil: Date | null;
+      accountBannedAt: Date | null;
+      accountBanReason: string | null;
     } & DefaultSession["user"];
   }
 
   interface User {
     manifestoAcceptedAt?: Date | null;
+    commentSuspendedUntil?: Date | null;
+    accountBannedAt?: Date | null;
+    accountBanReason?: string | null;
   }
 }
