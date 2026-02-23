@@ -29,7 +29,7 @@ Script used by CI/CD:
 
 ## GitHub automation
 - `ci.yml`: lint, typecheck, and Playwright E2E.
-- `deploy-staging.yml`: push to `staging` deploys staging, runs smoke + acceptance gates, and auto-promotes to production.
+- `deploy-staging.yml`: push to `master` deploys staging, runs smoke + acceptance gates, and auto-promotes to production.
 - `deploy-production.yml`: manual emergency production deploy (workflow dispatch only).
 - OIDC roles in AWS:
   - `arn:aws:iam::752725527807:role/lloyds-staging-github-actions`

@@ -3,7 +3,7 @@ name: Staging Release Pipeline
 on:
   push:
     branches:
-      - staging
+      - master
   workflow_dispatch:
 
 permissions:

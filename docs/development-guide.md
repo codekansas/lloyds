@@ -4,7 +4,7 @@ This guide is the default operating procedure for future agents.
 
 ## 1. Local development workflow
 
-1. Create changes on a feature branch from `staging`.
+1. Create changes on a feature branch from `master`.
 2. Run local validation before pushing:
    ```bash
    npm run lint
@@ -19,8 +19,8 @@ This guide is the default operating procedure for future agents.
 
 ## 2. Promote code to staging
 
-1. Merge feature work into `staging`.
-2. Push `staging` to GitHub.
+1. Merge feature work into `master`.
+2. Push `master` to GitHub.
 3. GitHub Actions workflow `/.github/workflows/deploy-staging.yml` runs automatically.
 
 ## 3. Automated staging-to-production pipeline
@@ -50,7 +50,7 @@ Production promotion only executes when all prior staging and acceptance gates p
 
 ## 4. Monitoring expectations
 
-After pushing to `staging`, monitor the workflow run until `promote_production` completes. Successful completion means staging was healthy and production was promoted automatically.
+After pushing to `master`, monitor the workflow run until `promote_production` completes. Successful completion means staging was healthy and production was promoted automatically.
 
 ## 5. Rollback / emergency path
 
