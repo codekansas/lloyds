@@ -3,6 +3,10 @@ import { defineConfig, devices } from "@playwright/test";
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3001";
 const cronSecret = process.env.CRON_SECRET ?? "e2e-cron-secret";
 const databaseUrl = process.env.DATABASE_URL ?? "postgresql://postgres:postgres@localhost:5432/lloyds_e2e?schema=public";
+const webServerEnv = { ...process.env };
+
+delete webServerEnv.FORCE_COLOR;
+delete webServerEnv.NO_COLOR;
 
 process.env.PLAYWRIGHT_BASE_URL = baseUrl;
 process.env.CRON_SECRET = cronSecret;
@@ -28,12 +32,12 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: "npm run dev -- --port 3001",
+    command: "env -u NO_COLOR -u FORCE_COLOR npm run dev -- --port 3001",
     url: `${baseUrl}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
-      ...process.env,
+      ...webServerEnv,
       DATABASE_URL: databaseUrl,
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-auth-secret-please-change",
       AUTH_TRUST_HOST: "true",
