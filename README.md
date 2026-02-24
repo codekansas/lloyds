@@ -19,6 +19,7 @@ AI-powered web application inspired by the original London coffee house: a high-
 ## Constitutional quality model
 - Source of truth: [Lloyd's Constitution gist](https://gist.github.com/codekansas/1f5b9bd7e4ca1332f667f0e04323ee5b)
 - Curated RSS feeds: [Lloyd's feed source gist](https://gist.github.com/codekansas/7e763397edfcb353da2b516c3d3ef4ba)
+  - Feed gist format: plain text, one feed URL per line (sorted; `#` comments allowed).
 - AI ratings are constrained to:
   - `Common Rumour`
   - `Merchant's Word`

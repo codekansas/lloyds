@@ -16,7 +16,16 @@ export type ServiceStatus = {
   summary: string;
   checks: ServiceCheck[];
   details: string[];
+  staleSources?: RssStaleSource[];
   updatedAt: string;
+};
+
+export type RssStaleSource = {
+  name: string;
+  url: string;
+  lastFetchedAt: string | null;
+  staleAgeMinutes: number | null;
+  failureCount: number;
 };
 
 export type ServiceStatusSnapshot = {
@@ -543,12 +552,14 @@ const buildRssService = ({
   now,
   activeSourceCount,
   staleSourceCount,
+  staleSources,
   unstableSourceCount,
   rssRuns,
 }: {
   now: Date;
   activeSourceCount: number;
   staleSourceCount: number;
+  staleSources: RssStaleSource[];
   unstableSourceCount: number;
   rssRuns: JobRunSnapshot[];
 }): ServiceStatus => {
@@ -632,6 +643,10 @@ const buildRssService = ({
     ...checks.filter((check) => check.state !== "operational").map(formatCheckLine),
   ];
 
+  if (staleSources.length > 0) {
+    details.push(`Stale source URLs listed below: ${staleSources.length}`);
+  }
+
   if (runSignals.latestFailure?.notes) {
     details.push(`Latest failure note: ${runSignals.latestFailure.notes.slice(0, 220)}`);
   }
@@ -643,6 +658,7 @@ const buildRssService = ({
     summary,
     checks,
     details,
+    staleSources,
     updatedAt: (getJobMoment(runSignals.latestRun) ?? now).toISOString(),
   };
 };
@@ -669,6 +685,7 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
       summaryRuns,
       rssRuns,
       activeFeedSourceCount,
+      staleFeedSourcesRaw,
       staleFeedSourceCount,
       unstableFeedSourceCount,
       recentCompletedSummaries24h,
@@ -765,6 +782,27 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
           isActive: true,
         },
       }),
+      prisma.feedSource.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            {
+              lastFetchedAt: null,
+            },
+            {
+              lastFetchedAt: {
+                lt: feedStaleCutoff,
+              },
+            },
+          ],
+        },
+        select: {
+          name: true,
+          url: true,
+          lastFetchedAt: true,
+          failureCount: true,
+        },
+      }),
       prisma.feedSource.count({
         where: {
           isActive: true,
@@ -808,6 +846,25 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
         },
       }),
     ]);
+
+    const staleFeedSources: RssStaleSource[] = staleFeedSourcesRaw
+      .map((source) => ({
+        name: source.name,
+        url: source.url,
+        lastFetchedAt: toIsoOrNull(source.lastFetchedAt),
+        staleAgeMinutes: minutesSinceOrNull(source.lastFetchedAt, now),
+        failureCount: source.failureCount,
+      }))
+      .sort((left, right) => {
+        const leftAge = left.staleAgeMinutes ?? Number.POSITIVE_INFINITY;
+        const rightAge = right.staleAgeMinutes ?? Number.POSITIVE_INFINITY;
+
+        if (rightAge !== leftAge) {
+          return rightAge - leftAge;
+        }
+
+        return left.url.localeCompare(right.url);
+      });
     const queryDurationMs = Date.now() - queryStartMs;
 
     const databaseService = buildDatabaseService({
@@ -830,6 +887,7 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
       now,
       activeSourceCount: activeFeedSourceCount,
       staleSourceCount: staleFeedSourceCount,
+      staleSources: staleFeedSources,
       unstableSourceCount: unstableFeedSourceCount,
       rssRuns,
     });
@@ -886,6 +944,7 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
         },
       ],
       details: [],
+      staleSources: [],
       updatedAt: nowIso,
     };
 

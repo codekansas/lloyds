@@ -3,7 +3,7 @@ import { normalizeUrl } from "@/lib/url";
 export const curatedFeedsGistId = "7e763397edfcb353da2b516c3d3ef4ba";
 export const curatedFeedsGistUrl = `https://gist.github.com/codekansas/${curatedFeedsGistId}`;
 const curatedFeedsGistApiUrl = `https://api.github.com/gists/${curatedFeedsGistId}`;
-const preferredGistFilename = "lloyds_feeds.json";
+const preferredGistFilenames = ["lloyds_feeds.txt"] as const;
 
 const successfulFetchCacheTtlMs = 24 * 60 * 60 * 1000;
 const fallbackCacheTtlMs = 60 * 60 * 1000;
@@ -66,9 +66,11 @@ const getGistFileReference = (payload: unknown): GistFileReference | null => {
     return null;
   }
 
-  const preferred = toGistFileReference(filesValue[preferredGistFilename]);
-  if (preferred) {
-    return preferred;
+  for (const preferredGistFilename of preferredGistFilenames) {
+    const preferred = toGistFileReference(filesValue[preferredGistFilename]);
+    if (preferred) {
+      return preferred;
+    }
   }
 
   for (const file of Object.values(filesValue)) {
@@ -104,7 +106,11 @@ const loadGistFileContent = async (fileReference: GistFileReference): Promise<st
 
 const normalizeCuratedFeedEntry = (value: unknown): CuratedFeedSeed | null => {
   const rawUrl =
-    typeof value === "string" ? value.trim() : isRecord(value) && typeof value.url === "string" ? value.url.trim() : "";
+    typeof value === "string"
+      ? value.trim()
+      : isRecord(value) && typeof value.url === "string"
+        ? value.url.trim()
+        : "";
 
   if (!rawUrl) {
     return null;
@@ -123,22 +129,10 @@ const normalizeCuratedFeedEntry = (value: unknown): CuratedFeedSeed | null => {
   };
 };
 
-const parseCuratedFeeds = (rawContent: string): CuratedFeedSeed[] => {
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(rawContent);
-  } catch {
-    throw new Error("Curated feeds gist must contain valid JSON.");
-  }
-
-  if (!Array.isArray(parsed)) {
-    throw new Error("Curated feeds gist must be a JSON array.");
-  }
-
+const dedupeAndSortCuratedFeeds = (entries: Iterable<unknown>): CuratedFeedSeed[] => {
   const dedupedFeeds = new Map<string, CuratedFeedSeed>();
 
-  for (const entry of parsed) {
+  for (const entry of entries) {
     const normalized = normalizeCuratedFeedEntry(entry);
     if (!normalized) {
       continue;
@@ -150,6 +144,32 @@ const parseCuratedFeeds = (rawContent: string): CuratedFeedSeed[] => {
   }
 
   return Array.from(dedupedFeeds.values()).sort((feedA, feedB) => feedA.url.localeCompare(feedB.url));
+};
+
+const parseLineBasedCuratedFeeds = (
+  rawContent: string,
+): {
+  feeds: CuratedFeedSeed[];
+  candidateLineCount: number;
+} => {
+  const candidateLines = rawContent
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"));
+
+  return {
+    feeds: dedupeAndSortCuratedFeeds(candidateLines),
+    candidateLineCount: candidateLines.length,
+  };
+};
+
+export const parseCuratedFeedSeeds = (rawContent: string): CuratedFeedSeed[] => {
+  const { feeds: lineBasedFeeds, candidateLineCount } = parseLineBasedCuratedFeeds(rawContent);
+  if (lineBasedFeeds.length > 0 || candidateLineCount === 0) {
+    return lineBasedFeeds;
+  }
+
+  throw new Error("Curated feeds gist must be a line-delimited URL list (one feed URL per line).");
 };
 
 const fetchCuratedFeedsFromGist = async (): Promise<CuratedFeedSeed[]> => {
@@ -174,7 +194,7 @@ const fetchCuratedFeedsFromGist = async (): Promise<CuratedFeedSeed[]> => {
   }
 
   const rawContent = await loadGistFileContent(fileReference);
-  return parseCuratedFeeds(rawContent);
+  return parseCuratedFeedSeeds(rawContent);
 };
 
 export const getCuratedFeedSeeds = async (): Promise<{
