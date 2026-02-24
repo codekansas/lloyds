@@ -68,7 +68,8 @@ test("renders ranked feed entries with AI bullets", async ({ page, baseURL }) =>
   await expect(postCard.getByText(summaryBullets[0])).toBeVisible();
   await expect(postCard.getByText(summaryBullets[1])).toBeVisible();
   await expect(postCard.getByText(summaryBullets[2])).toBeHidden();
-  await expect(postCard.getByText("18s read")).toBeVisible();
+  await expect(postCard.getByText("18s read")).toHaveCount(0);
+  await expect(postCard.getByText(/ai brief/i)).toHaveCount(0);
 
   const summaryToggle = postCard.locator(".feed-summary-more summary");
   await summaryToggle.click();

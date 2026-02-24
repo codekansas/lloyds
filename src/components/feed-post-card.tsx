@@ -120,7 +120,6 @@ export const FeedPostCard = ({
   publishedAt,
   sourceLabel,
   summaryBullets,
-  summaryReadSeconds,
   summaryStatus,
   excerpt,
   qualityRating,
@@ -161,11 +160,6 @@ export const FeedPostCard = ({
       </header>
 
       <div className="feed-summary">
-        <div className="feed-summary-title">
-          <strong className="lloyds-label">AI brief</strong>
-          {summaryReadSeconds ? <span className="lloyds-label">{summaryReadSeconds}s read</span> : null}
-        </div>
-
         {summaryPreview}
 
         {summaryOverflow ? (
