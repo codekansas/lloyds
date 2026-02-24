@@ -32,4 +32,4 @@ RUN npm prune --omit=dev
 USER nextjs
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npm run start -- -p $PORT"]
+CMD ["sh", "-c", "if [ \"$PRISMA_DB_PUSH_ON_BOOT\" = \"true\" ]; then npx prisma db push --skip-generate; fi && npm run start -- -p $PORT"]
