@@ -120,6 +120,7 @@ export const FeedPostCard = ({
   publishedAt,
   sourceLabel,
   summaryBullets,
+  summaryReadSeconds,
   summaryStatus,
   excerpt,
   qualityRating,
@@ -138,19 +139,19 @@ export const FeedPostCard = ({
   });
   const qualityLabel = qualityLabelFromRating(qualityRating);
   const qualityClassName = qualityRating
-    ? `chip quality-pill quality-pill-${qualityRating.toLowerCase()}`
-    : "chip quality-pill";
+    ? `lloyds-pill quality-pill quality-pill-${qualityRating.toLowerCase()}`
+    : "lloyds-pill quality-pill";
 
   return (
-    <article className="surface feed-card" data-testid={`feed-post-${postId}`}>
+    <article className="lloyds-card feed-card" data-testid={`feed-post-${postId}`}>
       <header className="feed-card-header">
         <div className="feed-card-meta">
           <span className={qualityClassName} title={qualityRationale ?? undefined}>
             {qualityLabel}
           </span>
-          <span className="chip">{sourceLabel}</span>
-          <span className="chip">{ageLabel}</span>
-          {domain ? <span className="chip">{domain}</span> : null}
+          <span className="lloyds-pill">{sourceLabel}</span>
+          <span className="lloyds-pill">{ageLabel}</span>
+          {domain ? <span className="lloyds-pill">{domain}</span> : null}
         </div>
         <h2>
           <a href={url} target="_blank" rel="noreferrer noopener">
@@ -160,11 +161,16 @@ export const FeedPostCard = ({
       </header>
 
       <div className="feed-summary">
+        <div className="feed-summary-title">
+          <strong className="lloyds-label">AI brief</strong>
+          {summaryReadSeconds ? <span className="lloyds-label">{summaryReadSeconds}s read</span> : null}
+        </div>
+
         {summaryPreview}
 
         {summaryOverflow ? (
           <details className="feed-summary-more">
-            <summary className="feed-toggle-button btn btn-secondary">
+            <summary className="feed-toggle-button lloyds-button-secondary">
               <span className="feed-toggle-more">See more...</span>
               <span className="feed-toggle-less">Show less</span>
             </summary>
@@ -174,7 +180,7 @@ export const FeedPostCard = ({
       </div>
 
       <footer className="feed-card-actions">
-        <Link href={`/feed/${postId}/comments`} className="btn btn-secondary">
+        <Link href={`/feed/${postId}/comments`} className="lloyds-button-secondary">
           View comments ({commentsCount})
         </Link>
       </footer>

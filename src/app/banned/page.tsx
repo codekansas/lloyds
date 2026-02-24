@@ -25,13 +25,13 @@ export default async function BannedPage() {
   const bannedAtLabel = formatBanTimestamp(user.accountBannedAt);
 
   return (
-    <section className="layout-stack">
+    <section className="lloyds-page">
       <header className="masthead">
         <h1>Account Banned</h1>
         <p>Your account has been permanently disabled for repeated constitutional comment violations.</p>
       </header>
 
-      <article className="surface">
+      <article className="panel">
         <p>Banned at: {bannedAtLabel}</p>
         <p>Reason: {user.accountBanReason ?? "Repeated constitutional violations in comment moderation."}</p>
         <p>
@@ -44,7 +44,7 @@ export default async function BannedPage() {
           If you believe this is an error, contact an administrator. You can also <Link href="/">return home</Link>.
         </p>
         <form action={signOutAction}>
-          <button type="submit" className="btn btn-secondary">
+          <button type="submit" className="lloyds-button-secondary">
             Sign out
           </button>
         </form>

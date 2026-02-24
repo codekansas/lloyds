@@ -40,9 +40,9 @@ export const TopNav = ({ isAuthed, acceptedManifesto, isBanned, userName }: TopN
           {isAuthed ? (
             <>
               <span>{userName || "Member"}</span>
-              {isBanned ? <span className="chip">Banned</span> : null}
+              {isBanned ? <span className="lloyds-pill">Banned</span> : null}
               <form action={signOutAction}>
-                <button type="submit" className="btn btn-secondary">
+                <button type="submit" className="lloyds-button-secondary">
                   Sign out
                 </button>
               </form>

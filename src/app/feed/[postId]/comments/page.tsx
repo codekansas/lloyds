@@ -107,21 +107,21 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
     });
 
   return (
-    <section className="layout-stack">
-      <header className="surface feed-comments-page-header">
-        <div className="feed-comments-page-meta inline-cluster">
-          <span className="chip">Article comments</span>
-          <span className="chip">{ageLabel}</span>
-          {post.domain ? <span className="chip">{post.domain}</span> : null}
+    <section className="lloyds-page">
+      <header className="panel feed-comments-page-header">
+        <div className="feed-comments-page-meta">
+          <span className="lloyds-pill">Article comments</span>
+          <span className="lloyds-pill">{ageLabel}</span>
+          {post.domain ? <span className="lloyds-pill">{post.domain}</span> : null}
         </div>
 
         <h1>{post.title}</h1>
 
-        <div className="feed-comments-page-actions inline-cluster">
-          <Link href="/" className="btn btn-secondary">
+        <div className="feed-comments-page-actions">
+          <Link href="/" className="lloyds-button-secondary">
             Back to Feed
           </Link>
-          <a href={post.url} target="_blank" rel="noreferrer noopener" className="btn btn-secondary">
+          <a href={post.url} target="_blank" rel="noreferrer noopener" className="lloyds-button-secondary">
             Open Article
           </a>
         </div>
@@ -130,9 +130,9 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
       {commented ? <Flash tone="success" message="Comment posted." /> : null}
       {commentErrorMessage ? <Flash tone="error" message={commentErrorMessage} /> : null}
 
-      <section className="surface feed-comments-panel">
+      <section className="panel feed-comments-panel">
         <h2>Comment Lattice ({commentViewModels.length})</h2>
-        <p className="feed-comments-tip text-label">
+        <p className="feed-comments-tip lloyds-label">
           Comments can reference multiple parents. Use <code>&gt;&gt;number</code> or <code>!number</code> to build the DAG.
         </p>
 
@@ -145,7 +145,7 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
                 <li key={comment.id} id={`comment-${comment.id}`} className="comment-lattice-item">
                   <article className="comment-card">
                     <header className="comment-card-header">
-                      <a href={`#comment-${comment.id}`} className="comment-anchor chip">
+                      <a href={`#comment-${comment.id}`} className="comment-anchor lloyds-pill">
                         #{comment.number}
                       </a>
                       <span>{comment.authorLabel}</span>
@@ -154,12 +154,12 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
 
                     {comment.parentIds.length > 0 ? (
                       <div className="comment-link-row">
-                        <strong className="text-label">Replies to</strong>
+                        <strong className="lloyds-label">Replies to</strong>
                         {comment.parentIds.map((parentId) => {
                           const parentComment = commentViewById.get(parentId);
 
                           return parentComment ? (
-                            <a key={parentId} href={`#comment-${parentId}`} className="comment-ref-chip chip">
+                            <a key={parentId} href={`#comment-${parentId}`} className="comment-ref-chip lloyds-pill">
                               &gt;&gt;{parentComment.number}
                               <span className="comment-ref-tooltip">{parentComment.preview}</span>
                             </a>
@@ -172,11 +172,11 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
 
                     {comment.childIds.length > 0 ? (
                       <div className="comment-link-row comment-link-row-backlinks">
-                        <strong className="text-label">Referenced by</strong>
+                        <strong className="lloyds-label">Referenced by</strong>
                         {comment.childIds.map((childId) => {
                           const childNumber = commentNumberById.get(childId);
                           return childNumber ? (
-                            <a key={childId} href={`#comment-${childId}`} className="comment-ref-chip chip">
+                            <a key={childId} href={`#comment-${childId}`} className="comment-ref-chip lloyds-pill">
                               &gt;&gt;{childNumber}
                             </a>
                           ) : null;
@@ -191,10 +191,10 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
         )}
       </section>
 
-      <section className="surface feed-comments-compose-panel">
+      <section className="panel feed-comments-compose-panel">
         <h2>Write a Comment</h2>
         {commentPermission.allowed ? (
-          <form action={addPostCommentFromPostPageAction} className="form-stack">
+          <form action={addPostCommentFromPostPageAction} className="feed-comment-form">
             <CommentComposer
               postId={post.id}
               commentOptions={commentReferenceOptions}

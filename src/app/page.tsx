@@ -167,24 +167,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const hasAcceptedManifesto = Boolean(session?.user?.manifestoAcceptedAt);
 
   return (
-    <section className="layout-stack">
+    <section className="lloyds-page">
       <header className="masthead">
         <h1>Lloyd&apos;s List</h1>
         <p>Curated RSS. No karma. Signal-first ranking.</p>
       </header>
 
-      <div className="layout-split">
-        <div className="layout-stack">
+      <div className="split-grid">
+        <div className="lloyds-page">
           {commented ? <Flash tone="success" message="Comment posted." /> : null}
           {commentErrorMessage ? <Flash tone="error" message={commentErrorMessage} /> : null}
 
-          <div className="inline-cluster feed-window-row">
+          <div className="feed-window-row">
             {dayOptions.map((option) => (
               <Link
                 key={option.href}
                 href={option.href}
-                className="chip feed-window-pill"
-                data-active={option.active}
+                className={`feed-window-pill lloyds-pill ${option.active ? "feed-window-pill-active" : ""}`}
               >
                 {option.label}
               </Link>
@@ -195,23 +194,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 dayOffset,
                 page: 1,
               })}
-              className="chip feed-window-pill"
-              data-active={windowMode === "all-time"}
+              className={`feed-window-pill lloyds-pill ${windowMode === "all-time" ? "feed-window-pill-active" : ""}`}
             >
               All time
             </Link>
           </div>
 
-          <div className="inline-cluster">
-            <span className="chip">{rankedPostsLabel}</span>
-            <span className="chip">{activeWindowLabel}</span>
-            <span className="chip">{sourceCount} active feed sources</span>
-            <span className="chip">{pendingSummaries} summaries pending</span>
+          <div className="stats-row">
+            <span className="lloyds-pill">{rankedPostsLabel}</span>
+            <span className="lloyds-pill">{activeWindowLabel}</span>
+            <span className="lloyds-pill">{sourceCount} active feed sources</span>
+            <span className="lloyds-pill">{pendingSummaries} summaries pending</span>
           </div>
 
           <div className="feed-grid">
             {feedPosts.length === 0 ? (
-              <article className="surface">
+              <article className="panel">
                 <h2>No Posts Yet</h2>
                 <p>Feed items appear after RSS ingestion runs against the curated sources gist.</p>
               </article>
@@ -240,60 +238,60 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           {totalPages > 1 ? (
             <nav className="feed-pagination-row" aria-label="Feed pages">
               {activePage > 1 ? (
-                <Link href={previousPageHref} className="btn btn-secondary">
+                <Link href={previousPageHref} className="lloyds-button-secondary">
                   Previous page
                 </Link>
               ) : (
-                <span className="chip feed-pagination-disabled">Previous page</span>
+                <span className="lloyds-pill feed-pagination-disabled">Previous page</span>
               )}
-              <span className="chip">
+              <span className="lloyds-pill">
                 Page {activePage} of {totalPages}
               </span>
               {activePage < totalPages ? (
-                <Link href={nextPageHref} className="btn btn-secondary">
+                <Link href={nextPageHref} className="lloyds-button-secondary">
                   Next page
                 </Link>
               ) : (
-                <span className="chip feed-pagination-disabled">Next page</span>
+                <span className="lloyds-pill feed-pagination-disabled">Next page</span>
               )}
             </nav>
           ) : null}
         </div>
 
-        <aside className="layout-stack">
-          <section className="surface">
+        <aside className="lloyds-page">
+          <section className="panel">
             <h2>House Rules</h2>
-            <ul className="list-reset">
+            <ul className="list-clean">
               <li>Open the source article for full context before strong judgment.</li>
               <li>Lloyd is an AI moderator that just follows the constitution, linked below.</li>
             </ul>
-            <div className="house-rules-action inline-cluster">
-              <a href={constitutionGistUrl} target="_blank" rel="noreferrer noopener" className="btn btn-secondary">
+            <div className="house-rules-action button-row">
+              <a href={constitutionGistUrl} target="_blank" rel="noreferrer noopener" className="lloyds-button-secondary">
                 Read Constitution
               </a>
-              <a href={curatedFeedsGistUrl} target="_blank" rel="noreferrer noopener" className="btn btn-secondary">
+              <a href={curatedFeedsGistUrl} target="_blank" rel="noreferrer noopener" className="lloyds-button-secondary">
                 View Feed Sources
               </a>
             </div>
           </section>
 
-          <section className="surface">
+          <section className="panel">
             <h2>Participation</h2>
             {!session?.user ? (
               <>
                 <p>Guests can read the feed. Sign in to comment and join discussion.</p>
                 <p>Posting requires agreeing to the community standards.</p>
-                <div className="form-stack">
+                <div className="form-grid">
                   {env.hasGoogleOAuth ? (
                     <form action={signInWithGoogleAction}>
-                      <button type="submit" className="btn btn-primary">
+                      <button type="submit" className="lloyds-button">
                         Continue with Google
                       </button>
                     </form>
                   ) : null}
                   {env.hasGithubOAuth ? (
                     <form action={signInWithGithubAction}>
-                      <button type="submit" className="btn btn-secondary">
+                      <button type="submit" className="lloyds-button-secondary">
                         Continue with GitHub
                       </button>
                     </form>
@@ -306,14 +304,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             ) : !hasAcceptedManifesto ? (
               <>
                 <p>You are signed in. Agree to the community standards before commenting.</p>
-                <Link href="/manifesto" className="btn btn-primary">
+                <Link href="/manifesto" className="lloyds-button">
                   Review Standards
                 </Link>
               </>
             ) : (
               <>
                 <p>Community standards accepted. You can comment and edit your profile.</p>
-                <Link href="/profile" className="btn btn-secondary">
+                <Link href="/profile" className="lloyds-button-secondary">
                   Edit Profile
                 </Link>
               </>
