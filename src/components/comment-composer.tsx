@@ -316,20 +316,20 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
   };
 
   return (
-    <div className="comment-composer">
+    <div className="comment-composer form-stack">
       <input type="hidden" name="postId" value={postId} />
       <input type="hidden" name="content" value={content} />
       <input type="hidden" name="format" value="MARKDOWN" />
       <input type="hidden" name="parentIds" value={JSON.stringify(selectedParentIds)} />
 
       <div className="comment-compose-header">
-        <strong className="lloyds-label">Add Comment</strong>
+        <strong className="text-label">Add Comment</strong>
         <div className="comment-format-toggle" role="tablist" aria-label="Comment format">
           <button
             type="button"
             role="tab"
             aria-selected={mode === "MARKDOWN"}
-            className={mode === "MARKDOWN" ? "comment-format-toggle-active" : undefined}
+            data-active={mode === "MARKDOWN"}
             onClick={() => {
               if (mode === "RICH_TEXT" && richEditorRef.current) {
                 const nextHtml = richEditorRef.current.innerHTML;
@@ -347,7 +347,7 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
             type="button"
             role="tab"
             aria-selected={mode === "RICH_TEXT"}
-            className={mode === "RICH_TEXT" ? "comment-format-toggle-active" : undefined}
+            data-active={mode === "RICH_TEXT"}
             onClick={() => {
               setRichTextDraft(markdownToRichHtml(content));
               setMode("RICH_TEXT");
@@ -360,13 +360,13 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
       </div>
 
       {selectedParents.length > 0 ? (
-        <div className="comment-parent-pill-row">
-          <span className="lloyds-label">Replying to:</span>
+        <div className="comment-parent-pill-row inline-cluster">
+          <span className="text-label">Replying to:</span>
           {selectedParents.map((parent) => (
             <button
               key={parent.id}
               type="button"
-              className="comment-parent-pill lloyds-pill"
+              className="comment-parent-pill chip"
               onClick={() => removeParentReference(parent.id)}
               title={`Remove parent #${parent.number}`}
             >
@@ -459,7 +459,7 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
               <li key={suggestion.type === "comment" ? suggestion.id : `${suggestion.id}-${suggestion.handle}`}>
                 <button
                   type="button"
-                  className={isHighlighted ? "comment-suggestion-active" : undefined}
+                  data-highlighted={isHighlighted}
                   onMouseDown={(event) => {
                     event.preventDefault();
                     applySuggestion(suggestion);
@@ -484,7 +484,7 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
         </ul>
       ) : null}
 
-      <button type="submit" className="lloyds-button" disabled={!canSubmit}>
+      <button type="submit" className="btn btn-primary" disabled={!canSubmit}>
         Post Comment
       </button>
     </div>
