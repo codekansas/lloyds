@@ -18,18 +18,17 @@ https://alpha.example.com/feed.xml
   ]);
 });
 
-test("supports legacy JSON array feed lists for transition compatibility", () => {
-  const feeds = parseCuratedFeedSeeds(`
+test("rejects legacy JSON array feed lists", () => {
+  assert.throws(
+    () =>
+      parseCuratedFeedSeeds(`
 [
   {"url":"https://example.com/object-feed.xml"},
   "https://www.example.com/string-feed.xml?utm_campaign=test"
 ]
-`);
-
-  assert.deepEqual(feeds, [
-    { url: "https://example.com/object-feed.xml" },
-    { url: "https://example.com/string-feed.xml" },
-  ]);
+`),
+    /line-delimited URL list/,
+  );
 });
 
 test("throws when gist content has no parseable feed URLs", () => {
