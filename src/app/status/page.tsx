@@ -62,14 +62,14 @@ export default async function StatusPage() {
                 {serviceStateLabels[service.state]}
               </span>
             </div>
-            <p>{service.summary}</p>
+            <p className="status-service-summary">{service.summary}</p>
             <ul className="list-clean status-service-details">
               {service.details.length === 0 ? <li>No additional details available.</li> : null}
               {service.details.map((detail) => (
                 <li key={detail}>{detail}</li>
               ))}
             </ul>
-            <p className="lloyds-label">Updated: {formatTimestamp(service.updatedAt)}</p>
+            <p className="lloyds-label status-service-updated">Updated: {formatTimestamp(service.updatedAt)}</p>
           </article>
         ))}
       </div>

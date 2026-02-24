@@ -1109,6 +1109,9 @@ button {
 }
 
 .status-service-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
   gap: 0.65rem;
 }
 
@@ -1160,14 +1163,31 @@ button {
 }
 
 .status-service-details {
+  margin: 0;
   display: grid;
   gap: 0.3rem;
+  align-content: start;
 }
 
 .status-service-details li {
   margin: 0;
   color: var(--ink-soft);
   font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.status-service-details.list-clean li {
+  margin-bottom: 0;
+}
+
+.status-service-summary {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.status-service-updated {
+  margin: 0;
+  margin-top: auto;
 }
 
 .list-clean {
