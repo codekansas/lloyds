@@ -69,6 +69,26 @@ export default async function StatusPage() {
                 <li key={detail}>{detail}</li>
               ))}
             </ul>
+            {service.id === "rss-ingestion" && service.staleSources && service.staleSources.length > 0 ? (
+              <div className="status-stale-sources">
+                <p className="lloyds-label status-stale-sources-title">Stale feed sources</p>
+                <ul className="list-clean status-stale-sources-list">
+                  {service.staleSources.map((source) => (
+                    <li key={source.url}>
+                      <a href={source.url} target="_blank" rel="noreferrer noopener">
+                        {source.url}
+                      </a>
+                      <span>
+                        {source.lastFetchedAt
+                          ? `Last fetched ${formatMinutesAsAge(source.staleAgeMinutes)} ago (${formatTimestamp(source.lastFetchedAt)}).`
+                          : "Never fetched successfully."}
+                        {source.failureCount > 0 ? ` Failure count: ${source.failureCount}.` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <p className="lloyds-label status-service-updated">Updated: {formatTimestamp(service.updatedAt)}</p>
           </article>
         ))}
