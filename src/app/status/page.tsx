@@ -64,8 +64,10 @@ export default async function StatusPage() {
               ))}
             </ul>
             {service.id === "rss-ingestion" && service.staleSources && service.staleSources.length > 0 ? (
-              <div className="status-stale-sources">
-                <p className="text-label status-stale-sources-title">Stale feed sources</p>
+              <details className="status-stale-sources">
+                <summary className="text-label status-stale-sources-summary">
+                  Stale feed sources ({service.staleSources.length})
+                </summary>
                 <ul className="list-reset status-stale-sources-list">
                   {service.staleSources.map((source) => (
                     <li key={source.url}>
@@ -81,7 +83,7 @@ export default async function StatusPage() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </details>
             ) : null}
             <p className="text-label status-service-updated">Updated: {formatTimestamp(service.updatedAt)}</p>
           </article>

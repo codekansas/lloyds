@@ -1129,8 +1129,13 @@ button {
   padding-top: 0.5rem;
 }
 
-.status-stale-sources-title {
+.status-stale-sources-summary {
   margin: 0;
+  cursor: pointer;
+}
+
+.status-stale-sources-summary:hover {
+  color: var(--ink);
 }
 
 .status-stale-sources-list {
