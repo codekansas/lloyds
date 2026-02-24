@@ -35,14 +35,14 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const errorKey = readSearchParam(query, "error");
 
   return (
-    <section className="lloyds-page">
+    <section className="layout-stack">
       <header className="masthead">
         <h1>Member Ledger</h1>
         <p>Share context about what you are building and exploring.</p>
       </header>
 
-      <div className="split-grid">
-        <form action={updateProfileAction} className="panel form-grid">
+      <div className="layout-split">
+        <form action={updateProfileAction} className="surface form-stack">
           <h2>Profile</h2>
           {saved ? <Flash tone="success" message="Profile updated." /> : null}
           {errorCopy[errorKey] ? <Flash tone="error" message={errorCopy[errorKey]} /> : null}
@@ -103,22 +103,22 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             />
           </label>
 
-          <button type="submit" className="lloyds-button">
+          <button type="submit" className="btn btn-primary">
             Save Profile
           </button>
         </form>
 
-        <aside className="lloyds-page">
-          <section className="panel">
+        <aside className="layout-stack">
+          <section className="surface">
             <h2>Profile Notes</h2>
-            <ul className="list-clean">
+            <ul className="list-reset">
               <li>Use concrete language about active projects and questions.</li>
               <li>Include specifics others can respond to in conversation.</li>
               <li>Keep this updated as your work evolves.</li>
             </ul>
           </section>
 
-          <section className="panel">
+          <section className="surface">
             <h2>Account</h2>
             <p>Email: {profile.email ?? "No email found"}</p>
           </section>

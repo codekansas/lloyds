@@ -34,13 +34,13 @@ export default async function ManifestoPage({ searchParams }: ManifestoPageProps
   const errorKey = readSearchParam(query, "error");
 
   return (
-    <section className="lloyds-page">
+    <section className="layout-stack">
       <header className="masthead">
         <h1>Lloyd&apos;s Coffee House</h1>
         <p>No access without principled consent.</p>
       </header>
 
-      <div className="panel manifesto manifesto-with-form">
+      <div className="surface manifesto manifesto-with-form">
         <div className="manifesto-copy">
           <h2>{manifestoTitle}</h2>
           {manifestoParagraphs.map((paragraph) => (
@@ -48,7 +48,7 @@ export default async function ManifestoPage({ searchParams }: ManifestoPageProps
           ))}
         </div>
 
-        <form action={acceptManifestoAction} className="form-grid">
+        <form action={acceptManifestoAction} className="form-stack">
           {errorCopy[errorKey] ? <Flash tone="error" message={errorCopy[errorKey]} /> : null}
 
           <div className="manifesto-tenets">
@@ -65,7 +65,7 @@ export default async function ManifestoPage({ searchParams }: ManifestoPageProps
             </label>
           </div>
 
-          <button type="submit" className="lloyds-button">
+          <button type="submit" className="btn btn-primary">
             Agree and Enter
           </button>
         </form>
