@@ -51,7 +51,16 @@ export const ingestRssFeeds = async (
       sourceType: "CURATED",
     },
     take: maxSources,
-    orderBy: [{ lastFetchedAt: "asc" }, { createdAt: "asc" }],
+    // Prioritize never-fetched sources so they do not starve when maxSources < total active sources.
+    orderBy: [
+      {
+        lastFetchedAt: {
+          sort: "asc",
+          nulls: "first",
+        },
+      },
+      { createdAt: "asc" },
+    ],
   });
 
   const result: IngestRssResult = {
