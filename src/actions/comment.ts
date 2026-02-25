@@ -12,6 +12,7 @@ import {
 } from "@/lib/comment-format";
 import { requireManifestoUser } from "@/lib/auth-guards";
 import { moderateCommentSubmission } from "@/lib/comment-moderation";
+import { dispatchCommentReplyNotifications } from "@/lib/comment-reply-notifications";
 import { prisma } from "@/lib/prisma";
 
 const minCommentCharacters = 2;
@@ -147,6 +148,8 @@ const createPostComment = async ({
   | {
       ok: true;
       postId: string;
+      commentId: string;
+      parentCommentIds: string[];
     }
   | {
       ok: false;
@@ -232,6 +235,8 @@ const createPostComment = async ({
     return {
       ok: true as const,
       postId: post.id,
+      commentId: createdComment.id,
+      parentCommentIds: combinedParentIds,
     };
   });
 
@@ -295,6 +300,15 @@ export const addPostCommentAction = async (formData: FormData): Promise<void> =>
     redirect(buildCommentErrorPath({ basePath: "/", commentError: createResult.error }));
   }
 
+  await dispatchCommentReplyNotifications({
+    actorUserId: user.id,
+    postId: createResult.postId,
+    commentId: createResult.commentId,
+    parentCommentIds: createResult.parentCommentIds,
+    commentContent: parsed.content,
+    commentFormat: parsed.format,
+  });
+
   revalidatePath("/");
   revalidatePath(resolveCommentsPagePath(createResult.postId));
   redirect("/?commented=1");
@@ -357,6 +371,15 @@ export const addPostCommentFromPostPageAction = async (formData: FormData): Prom
   if (!createResult.ok) {
     redirect(buildCommentErrorPath({ basePath: fallbackPath, commentError: createResult.error }));
   }
+
+  await dispatchCommentReplyNotifications({
+    actorUserId: user.id,
+    postId: createResult.postId,
+    commentId: createResult.commentId,
+    parentCommentIds: createResult.parentCommentIds,
+    commentContent: parsed.content,
+    commentFormat: parsed.format,
+  });
 
   revalidatePath("/");
   revalidatePath(resolveCommentsPagePath(createResult.postId));

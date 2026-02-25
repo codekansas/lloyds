@@ -6,7 +6,7 @@ import { addPostCommentFromPostPageAction } from "@/actions/comment";
 import { CommentComposer } from "@/components/comment-composer";
 import { Flash } from "@/components/flash";
 import { requireManifestoUser } from "@/lib/auth-guards";
-import { getCommentErrorMessage } from "@/lib/comment-feedback";
+import { getCommentErrorFeedback } from "@/lib/comment-feedback";
 import { getCommentPermissionState } from "@/lib/comment-moderation";
 import { buildCommentThreadView } from "@/lib/comment-thread";
 import { constitutionGistUrl } from "@/lib/constitution";
@@ -79,7 +79,7 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
   const commentSuspendedUntil = suspendedUntilFromQuery || suspendedUntilFromPermission;
   const violationCountFromQuery = readSearchParamNumber(query, "violationCount");
   const violationCount = violationCountFromQuery ?? commentPermission.violationCount;
-  const commentErrorMessage = getCommentErrorMessage({
+  const commentErrorFeedback = getCommentErrorFeedback({
     commentError: commentErrorKey,
     suspendedUntilIso: commentSuspendedUntil,
     violationCount,
@@ -128,12 +128,26 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
       </header>
 
       {commented ? <Flash tone="success" message="Comment posted." /> : null}
-      {commentErrorMessage ? <Flash tone="error" message={commentErrorMessage} /> : null}
+      {commentErrorFeedback ? (
+        <Flash
+          tone="error"
+          message={
+            <>
+              {commentErrorFeedback.message}{" "}
+              {commentErrorFeedback.constitutionLinkLabel ? (
+                <a href={constitutionGistUrl} target="_blank" rel="noreferrer noopener" className="flash-link">
+                  {commentErrorFeedback.constitutionLinkLabel}
+                </a>
+              ) : null}
+            </>
+          }
+        />
+      ) : null}
 
       <section className="surface feed-comments-panel">
         <h2>Comment Lattice ({commentViewModels.length})</h2>
         <p className="feed-comments-tip text-label">
-          Comments can reference multiple parents. Use <code>&gt;&gt;number</code> or <code>!number</code> to build the DAG.
+          Comments can reference multiple parents. Use <code>!number</code> to build the DAG.
         </p>
 
         {commentViewModels.length === 0 ? (
@@ -160,7 +174,7 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
 
                           return parentComment ? (
                             <a key={parentId} href={`#comment-${parentId}`} className="comment-ref-chip chip">
-                              &gt;&gt;{parentComment.number}
+                              !{parentComment.number}
                               <span className="comment-ref-tooltip">{parentComment.preview}</span>
                             </a>
                           ) : null;
@@ -177,7 +191,7 @@ export default async function PostCommentsPage({ params, searchParams }: PostCom
                           const childNumber = commentNumberById.get(childId);
                           return childNumber ? (
                             <a key={childId} href={`#comment-${childId}`} className="comment-ref-chip chip">
-                              &gt;&gt;{childNumber}
+                              !{childNumber}
                             </a>
                           ) : null;
                         })}

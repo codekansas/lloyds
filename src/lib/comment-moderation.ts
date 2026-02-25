@@ -5,7 +5,7 @@ import { openAiClient } from "@/lib/ai";
 import { type CommentFormatValue, getCommentPlainText } from "@/lib/comment-format";
 import { getConstitutionText } from "@/lib/constitution";
 import { env } from "@/lib/env";
-import { resolvePenaltyForViolationCount } from "@/lib/comment-moderation-policy";
+import { resolveEffectiveViolationCount, resolvePenaltyForViolationCount } from "@/lib/comment-moderation-policy";
 import { prisma } from "@/lib/prisma";
 
 const contextCommentLimit = 14;
@@ -123,17 +123,29 @@ const parseModerationJson = (raw: string): ModerationAssessment | null => {
 };
 
 export const getCommentPermissionState = async (userId: string): Promise<CommentPermissionState> => {
-  const user = await prisma.user.findUnique({
-    where: {
-      id: userId,
-    },
-    select: {
-      constitutionViolationCount: true,
-      commentSuspendedUntil: true,
-      accountBannedAt: true,
-      accountBanReason: true,
-    },
-  });
+  const [user, lastViolationEvent] = await Promise.all([
+    prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      select: {
+        constitutionViolationCount: true,
+        commentSuspendedUntil: true,
+        accountBannedAt: true,
+        accountBanReason: true,
+      },
+    }),
+    prisma.commentModerationEvent.findFirst({
+      where: {
+        userId,
+        decision: "BLOCKED",
+      },
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        createdAt: true,
+      },
+    }),
+  ]);
 
   if (!user) {
     return {
@@ -145,11 +157,16 @@ export const getCommentPermissionState = async (userId: string): Promise<Comment
     };
   }
 
+  const effectiveViolationCount = resolveEffectiveViolationCount({
+    storedViolationCount: user.constitutionViolationCount,
+    lastViolationAt: lastViolationEvent?.createdAt ?? null,
+  });
+
   if (user.accountBannedAt) {
     return {
       allowed: false,
       reason: "account-banned",
-      violationCount: user.constitutionViolationCount,
+      violationCount: effectiveViolationCount,
       bannedAt: user.accountBannedAt,
       banReason: user.accountBanReason,
     };
@@ -159,14 +176,14 @@ export const getCommentPermissionState = async (userId: string): Promise<Comment
     return {
       allowed: false,
       reason: "comment-suspended",
-      violationCount: user.constitutionViolationCount,
+      violationCount: effectiveViolationCount,
       suspendedUntil: user.commentSuspendedUntil,
     };
   }
 
   return {
     allowed: true,
-    violationCount: user.constitutionViolationCount,
+    violationCount: effectiveViolationCount,
   };
 };
 
@@ -375,12 +392,27 @@ const applyViolationPenalty = async ({
         accountBanReason: true,
       },
     });
+    const lastViolationEvent = await transaction.commentModerationEvent.findFirst({
+      where: {
+        userId,
+        decision: "BLOCKED",
+      },
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        createdAt: true,
+      },
+    });
+    const effectiveViolationCount = resolveEffectiveViolationCount({
+      storedViolationCount: user?.constitutionViolationCount ?? 0,
+      lastViolationAt: lastViolationEvent?.createdAt ?? null,
+      asOf: now,
+    });
 
     if (!user || user.accountBannedAt) {
       return {
         ok: false as const,
         error: "account-banned" as const,
-        violationCount: user?.constitutionViolationCount ?? 0,
+        violationCount: effectiveViolationCount,
         bannedAt: user?.accountBannedAt ?? now,
         banReason: user?.accountBanReason ?? "Account disabled by moderation policy.",
         penalty: "BAN_ACCOUNT" as const,
@@ -391,12 +423,12 @@ const applyViolationPenalty = async ({
       return {
         ok: false as const,
         error: "comment-suspended" as const,
-        violationCount: user.constitutionViolationCount,
+        violationCount: effectiveViolationCount,
         suspendedUntil: user.commentSuspendedUntil,
       };
     }
 
-    const nextViolationCount = user.constitutionViolationCount + 1;
+    const nextViolationCount = effectiveViolationCount + 1;
     const penaltyResolution = resolvePenaltyForViolationCount(nextViolationCount);
     const penaltyEndsAt =
       penaltyResolution.suspensionHours === null

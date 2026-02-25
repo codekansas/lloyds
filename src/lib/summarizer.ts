@@ -110,7 +110,7 @@ const fallbackSummarize = (title: string, articleUrl: string, articleText: strin
   };
 };
 
-const parseSummaryJson = (rawText: string): SummaryResult | null => {
+const parseSummaryJson = (rawText: string, model: string): SummaryResult | null => {
   try {
     const parsed = JSON.parse(rawText);
     const validated = summarySchema.parse(parsed);
@@ -122,7 +122,7 @@ const parseSummaryJson = (rawText: string): SummaryResult | null => {
         qualityChecklist: validated.qualityChecklist,
         qualityRationale: validated.qualityRationale,
       }),
-      model: env.openAiModel,
+      model,
     };
   } catch {
     return null;
@@ -139,6 +139,7 @@ export const summarizeArticle = async (
   }
 
   const constitution = await getConstitutionText();
+  const gradingModel = env.constitutionGraderModel;
   const prompt = [
     "You create rapid pre-read summaries for thoughtful readers.",
     "Output strict JSON only with this schema:",
@@ -152,6 +153,10 @@ export const summarizeArticle = async (
     articleQualityRatingValues.join(", "),
     "Keep distribution roughly calibrated over many links:",
     articleQualityScalePrompt,
+    "Strongly deprioritize political or overtly emotional content when technical/scientific substance is secondary.",
+    "If politics/emotion-first framing dominates and technical depth is weak, score Common Rumour.",
+    "Do not score above Merchant's Word for politics/emotion-heavy content unless technical analysis is clearly dominant.",
+    "When this penalty applies, explicitly mention it in qualityChecklist.penalties and qualityRationale.",
     "qualityRationale must be a short (1-2 sentence) conclusion that summarizes how the checklist led to the final rating.",
     "No markdown, no numbering, no extra keys.",
     "--- Constitution Reference ---",
@@ -166,7 +171,7 @@ export const summarizeArticle = async (
 
   try {
     const response = await openAiClient.responses.create({
-      model: env.openAiModel,
+      model: gradingModel,
       input: [
         {
           role: "user",
@@ -177,7 +182,7 @@ export const summarizeArticle = async (
       temperature: 0.2,
     });
 
-    const parsed = parseSummaryJson(response.output_text);
+    const parsed = parseSummaryJson(response.output_text, gradingModel);
     if (parsed) {
       return parsed;
     }

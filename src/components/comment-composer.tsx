@@ -17,7 +17,6 @@ type TriggerMatch = {
   query: string;
   start: number;
   end: number;
-  marker?: "bang" | "chevron";
 };
 
 type SuggestionOption =
@@ -38,22 +37,10 @@ const minCommentCharacters = 2;
 
 const detectTriggerMatch = (value: string, cursor: number): TriggerMatch | null => {
   const beforeCursor = value.slice(0, cursor);
-  const chevronMatch = beforeCursor.match(/(^|\s)>>([0-9]{0,4})$/);
-  if (chevronMatch) {
-    return {
-      type: "comment",
-      marker: "chevron",
-      query: chevronMatch[2],
-      start: cursor - (chevronMatch[2].length + 2),
-      end: cursor,
-    };
-  }
-
   const bangMatch = beforeCursor.match(/(^|\s)!([0-9]{0,4})$/);
   if (bangMatch) {
     return {
       type: "comment",
-      marker: "bang",
       query: bangMatch[2],
       start: cursor - (bangMatch[2].length + 1),
       end: cursor,
@@ -227,9 +214,7 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
     }
 
     const replacementText =
-      suggestion.type === "comment"
-        ? `${activeTrigger.marker === "bang" ? "!" : ">>"}${suggestion.number}`
-        : `@${suggestion.handle}`;
+      suggestion.type === "comment" ? `!${suggestion.number}` : `@${suggestion.handle}`;
     const replacementWithPadding = `${replacementText} `;
 
     if (mode === "MARKDOWN" && markdownInputRef.current) {
@@ -370,13 +355,13 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
               onClick={() => removeParentReference(parent.id)}
               title={`Remove parent #${parent.number}`}
             >
-              &gt;&gt;{parent.number} ×
+              !{parent.number} ×
             </button>
           ))}
         </div>
       ) : (
         <p className="comment-compose-tip">
-          Tip: type <code>&gt;&gt;</code>, <code>!</code>, or <code>@</code> to reference comments/users.
+          Tip: type <code>!</code> or <code>@</code> to reference comments/users.
         </p>
       )}
 
@@ -395,7 +380,7 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
             onKeyDown={handleSuggestionNavigation}
             onKeyUp={(event) => updateMarkdownTrigger(event.currentTarget)}
             onClick={(event) => updateMarkdownTrigger(event.currentTarget)}
-            placeholder="Add a thoughtful comment. Use >>12 or !12 to reference another comment, or @name to mention a member."
+            placeholder="Add a thoughtful comment. Use !12 to reference another comment, or @name to mention a member."
             autoComplete="off"
           />
         </label>
@@ -445,7 +430,7 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
             onKeyDown={handleSuggestionNavigation}
             onKeyUp={() => updateRichTrigger()}
             onClick={() => updateRichTrigger()}
-            data-placeholder="Write with formatting. Type >>12 or !12 to reference another comment or @name to mention a member."
+            data-placeholder="Write with formatting. Type !12 to reference another comment or @name to mention a member."
           />
         </div>
       )}
@@ -467,7 +452,7 @@ export const CommentComposer = ({ postId, commentOptions, userOptions }: Comment
                 >
                   {suggestion.type === "comment" ? (
                     <>
-                      <strong>&gt;&gt;{suggestion.number}</strong>
+                      <strong>!{suggestion.number}</strong>
                       <span>{suggestion.authorLabel}</span>
                       <p>{suggestion.preview}</p>
                     </>

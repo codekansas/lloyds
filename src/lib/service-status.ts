@@ -410,7 +410,8 @@ const buildOpenAiService = ({
   const state = deriveServiceState(checks);
   const summary = deriveServiceSummary(checks, healthySummary);
   const details = [
-    `Configured model: ${env.openAiModel}`,
+    `Moderation/default model: ${env.openAiModel}`,
+    `Constitution grader model: ${env.constitutionGraderModel}`,
     recentCompletedSummaries === null ? "Recent summary usage: unavailable" : `Recent completed summaries (24h): ${recentCompletedSummaries}`,
     recentFallbackSummaries === null ? "Recent fallback summaries: unavailable" : `Recent fallback summaries (24h): ${recentFallbackSummaries}`,
     ...checks.map(formatCheckLine),

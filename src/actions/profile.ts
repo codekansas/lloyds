@@ -14,6 +14,8 @@ const profileSchema = z.object({
   interests: z.string().max(4_000).optional(),
   goals: z.string().max(4_000).optional(),
   ideasInFlight: z.string().max(4_000).optional(),
+  notifyCommentRepliesInApp: z.enum(["on"]).optional(),
+  notifyCommentRepliesEmail: z.enum(["on"]).optional(),
 });
 
 export const updateProfileAction = async (formData: FormData): Promise<void> => {
@@ -26,6 +28,8 @@ export const updateProfileAction = async (formData: FormData): Promise<void> => 
     interests: formData.get("interests") || undefined,
     goals: formData.get("goals") || undefined,
     ideasInFlight: formData.get("ideasInFlight") || undefined,
+    notifyCommentRepliesInApp: formData.get("notifyCommentRepliesInApp") || undefined,
+    notifyCommentRepliesEmail: formData.get("notifyCommentRepliesEmail") || undefined,
   });
 
   if (!parsed.success) {
@@ -45,6 +49,8 @@ export const updateProfileAction = async (formData: FormData): Promise<void> => 
       interests: data.interests?.trim() || null,
       goals: data.goals?.trim() || null,
       ideasInFlight: data.ideasInFlight?.trim() || null,
+      notifyCommentRepliesInApp: data.notifyCommentRepliesInApp === "on",
+      notifyCommentRepliesEmail: data.notifyCommentRepliesEmail === "on",
     },
   });
 
