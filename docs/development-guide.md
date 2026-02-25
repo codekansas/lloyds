@@ -34,7 +34,8 @@ The staging pipeline is intentionally gated and sequential:
 
 2. `smoke_staging`
 - Runs Playwright smoke tests against `https://cafestaging.bolte.cc`.
-- Performs repeated `/api/health` checks as a stability window.
+- Performs repeated `/api/health?mode=readiness` checks as a stability window.
+- Fails if `/api/status` reports outage state.
 
 3. `acceptance_staging`
 - Runs additional Playwright acceptance checks against staging.

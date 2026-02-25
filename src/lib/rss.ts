@@ -1,5 +1,6 @@
 import Parser from "rss-parser";
 
+import { formatErrorSummary, getErrorDiagnostics, logEvent } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 import { getDomainFromUrl, normalizeUrl } from "@/lib/url";
 
@@ -45,6 +46,7 @@ export const ingestRssFeeds = async (
   maxSources = 25,
   maxItemsPerSource = 30,
 ): Promise<IngestRssResult> => {
+  const startedAtMs = Date.now();
   const sources = await prisma.feedSource.findMany({
     where: {
       isActive: true,
@@ -138,8 +140,14 @@ export const ingestRssFeeds = async (
         },
       });
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown RSS ingestion failure";
+      const message = formatErrorSummary(error, 220);
       result.errors.push(`${source.name}: ${message}`);
+      logEvent("warn", "rss.ingest.source_failed", {
+        sourceId: source.id,
+        sourceName: source.name,
+        sourceUrl: source.url,
+        error: getErrorDiagnostics(error),
+      });
 
       await prisma.feedSource.update({
         where: {
@@ -154,6 +162,15 @@ export const ingestRssFeeds = async (
       });
     }
   }
+
+  logEvent("info", "rss.ingest.completed", {
+    durationMs: Date.now() - startedAtMs,
+    sourcesAttempted: result.sourcesAttempted,
+    sourcesSucceeded: result.sourcesSucceeded,
+    postsCreated: result.postsCreated,
+    postsSkipped: result.postsSkipped,
+    errorCount: result.errors.length,
+  });
 
   return result;
 };

@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { formatErrorSummary, getErrorDiagnostics, logEvent } from "@/lib/observability";
 import { prisma } from "@/lib/prisma";
 
 export type ServiceState = "operational" | "degraded" | "outage";
@@ -900,6 +901,13 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
 
     const services: ServiceStatus[] = [databaseService, rssService, summaryService, openAiService];
     const overallState = services.reduce<ServiceState>((state, service) => pickWorseState(state, service.state), "operational");
+    if (overallState !== "operational" || queryDurationMs >= DATABASE_WARN_QUERY_MS) {
+      logEvent(overallState === "operational" ? "warn" : "error", "status.snapshot.non_operational", {
+        overallState,
+        queryDurationMs,
+        serviceStates: services.map((service) => ({ id: service.id, state: service.state })),
+      });
+    }
 
     return {
       generatedAt: nowIso,
@@ -913,7 +921,10 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
       },
     };
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown database error";
+    const message = formatErrorSummary(error, 260);
+    logEvent("error", "status.snapshot.failed", {
+      error: getErrorDiagnostics(error),
+    });
 
     const databaseService: ServiceStatus = {
       id: "database",

@@ -86,6 +86,8 @@ Routes are protected by `CRON_SECRET` via `Authorization: Bearer <CRON_SECRET>`.
 
 Public monitoring route (no auth):
 - `GET /api/status`
+- `GET /api/health` (liveness)
+- `GET /api/health?mode=readiness` (fails with `503` when staging/production has blocking outages)
 
 Example:
 ```bash
