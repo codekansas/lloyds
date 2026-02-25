@@ -19,7 +19,7 @@ env:
   STAGING_ECS_CLUSTER: lloyds-staging-cluster
   STAGING_ECS_SERVICE: lloyds-staging
   STAGING_ECS_CONTAINER_NAME: lloyds-staging
-  OPENAI_MODERATION_MODEL: gpt-5.1-mini
+  OPENAI_MODERATION_MODEL: gpt-5-mini
   OPENAI_CONSTITUTION_GRADER_MODEL: gpt-5.2
   PRODUCTION_AWS_ROLE_ARN: arn:aws:iam::752725527807:role/lloyds-production-github-actions
   PRODUCTION_ECR_REPOSITORY_URL: 752725527807.dkr.ecr.us-east-1.amazonaws.com/lloyds-production

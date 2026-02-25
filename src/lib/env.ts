@@ -63,7 +63,7 @@ const env = {
   hasGithubOAuth: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
   cronSecret: process.env.CRON_SECRET,
   openAiApiKey: resolveOpenAiApiKey(),
-  openAiModel: process.env.OPENAI_MODEL ?? "gpt-5.1-mini",
+  openAiModel: process.env.OPENAI_MODEL ?? "gpt-5-mini",
   constitutionGraderModel: resolveConstitutionGraderModel(),
   notificationEmailFrom: process.env.NOTIFICATION_EMAIL_FROM,
   resendApiKey: process.env.RESEND_API_KEY,
