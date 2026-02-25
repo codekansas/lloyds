@@ -14,6 +14,8 @@ env:
   ECS_CLUSTER: lloyds-production-cluster
   ECS_SERVICE: lloyds-production
   ECS_CONTAINER_NAME: lloyds-production
+  OPENAI_MODERATION_MODEL: gpt-5.1-mini
+  OPENAI_CONSTITUTION_GRADER_MODEL: gpt-5.2
 
 jobs:
   deploy:
@@ -56,3 +58,7 @@ jobs:
           ECS_SERVICE: ${{ env.ECS_SERVICE }}
           ECS_CONTAINER_NAME: ${{ env.ECS_CONTAINER_NAME }}
           IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+          APP_ENV: production
+          PRISMA_DB_PUSH_ON_BOOT: "true"
+          OPENAI_MODEL: ${{ env.OPENAI_MODERATION_MODEL }}
+          OPENAI_CONSTITUTION_GRADER_MODEL: ${{ env.OPENAI_CONSTITUTION_GRADER_MODEL }}
