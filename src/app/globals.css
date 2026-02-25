@@ -467,6 +467,43 @@ button {
   color: color-mix(in srgb, var(--quality-tier-color) 76%, var(--ink));
 }
 
+.quality-rating-details {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.quality-rating-summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.quality-rating-summary::-webkit-details-marker {
+  display: none;
+}
+
+.quality-rating-summary::marker {
+  content: "";
+}
+
+.quality-rating-summary .quality-pill {
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.quality-rating-details[open] .quality-pill {
+  --pill-border: color-mix(in srgb, var(--quality-tier-color) 65%, var(--line-accent));
+  --pill-surface: color-mix(in srgb, var(--quality-tier-color) 20%, var(--surface-chip));
+}
+
+.quality-rating-explanation {
+  margin: 0;
+  max-width: 52ch;
+  border: 1px solid var(--line);
+  background: var(--surface-panel);
+  padding: 0.4rem 0.5rem;
+  font-size: 0.76rem;
+  line-height: 1.42;
+}
+
 .quality-pill::before {
   content: "";
   width: 0.45rem;

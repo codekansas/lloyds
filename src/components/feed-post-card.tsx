@@ -141,14 +141,18 @@ export const FeedPostCard = ({
   const qualityClassName = qualityRating
     ? `chip quality-pill quality-pill-${qualityRating.toLowerCase()}`
     : "chip quality-pill";
+  const qualityExplanation = qualityRationale?.trim() ?? "Quality reasoning summary is not available yet for this article.";
 
   return (
     <article className="surface feed-card" data-testid={`feed-post-${postId}`}>
       <header className="feed-card-header">
         <div className="feed-card-meta">
-          <span className={qualityClassName} title={qualityRationale ?? undefined}>
-            {qualityLabel}
-          </span>
+          <details className="quality-rating-details">
+            <summary className="quality-rating-summary" aria-label={`Show quality reasoning for ${qualityLabel}`}>
+              <span className={qualityClassName}>{qualityLabel}</span>
+            </summary>
+            <p className="quality-rating-explanation">{qualityExplanation}</p>
+          </details>
           <span className="chip">{sourceLabel}</span>
           <span className="chip">{ageLabel}</span>
           {domain ? <span className="chip">{domain}</span> : null}

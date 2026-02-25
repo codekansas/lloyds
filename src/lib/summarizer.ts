@@ -11,10 +11,22 @@ import { openAiClient } from "@/lib/ai";
 import { getConstitutionText } from "@/lib/constitution";
 import { env } from "@/lib/env";
 
+const qualityChecklistSchema = z.object({
+  scopeFit: z.string().min(8).max(180),
+  technicalDepth: z.string().min(8).max(180),
+  novelty: z.string().min(8).max(180),
+  evidenceQuality: z.string().min(8).max(180),
+  reasoningQuality: z.string().min(8).max(180),
+  practicalValue: z.string().min(8).max(180),
+  clarity: z.string().min(8).max(180),
+  penalties: z.string().min(8).max(180),
+});
+
 const summarySchema = z.object({
   bullets: z.array(z.string().min(8).max(220)).min(4).max(8),
   readSeconds: z.number().int().min(10).max(30),
   qualityRating: z.enum(articleQualityRatingValues),
+  qualityChecklist: qualityChecklistSchema.optional(),
   qualityRationale: z.string().min(24).max(320),
 });
 
@@ -31,6 +43,49 @@ const cleanSentence = (value: string): string => {
     .replace(/\s+/g, " ")
     .replace(/^[\-•\d\.\)\s]+/, "")
     .trim();
+};
+
+const trimToMax = (value: string, maxLength: number): string => {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+};
+
+const summarizeChecklistForRationale = (checklist: z.infer<typeof qualityChecklistSchema>): string => {
+  const checklistSummary = [
+    `Scope fit: ${cleanSentence(checklist.scopeFit)}`,
+    `Depth: ${cleanSentence(checklist.technicalDepth)}`,
+    `Novelty: ${cleanSentence(checklist.novelty)}`,
+    `Evidence: ${cleanSentence(checklist.evidenceQuality)}`,
+    `Reasoning: ${cleanSentence(checklist.reasoningQuality)}`,
+    `Practical value: ${cleanSentence(checklist.practicalValue)}`,
+  ];
+
+  const normalizedPenalty = cleanSentence(checklist.penalties);
+  if (!/^(none|n\/a|no material|no major)/i.test(normalizedPenalty)) {
+    checklistSummary.push(`Penalties: ${normalizedPenalty}`);
+  }
+
+  return trimToMax(checklistSummary.join(" "), 260);
+};
+
+const buildQualityRationale = ({
+  qualityRationale,
+  qualityChecklist,
+}: {
+  qualityRationale: string;
+  qualityChecklist?: z.infer<typeof qualityChecklistSchema>;
+}): string => {
+  const normalizedRationale = trimToMax(cleanSentence(qualityRationale), 220);
+
+  if (!qualityChecklist) {
+    return normalizedRationale;
+  }
+
+  const checklistSummary = summarizeChecklistForRationale(qualityChecklist);
+  return trimToMax(`Checklist review: ${checklistSummary} Conclusion: ${normalizedRationale}`, 320);
 };
 
 const fallbackSummarize = (title: string, articleUrl: string, articleText: string): SummaryResult => {
@@ -50,7 +105,7 @@ const fallbackSummarize = (title: string, articleUrl: string, articleText: strin
     bullets,
     readSeconds: Math.max(10, Math.min(30, Math.round((bullets.join(" ").split(" ").length / 220) * 60))),
     qualityRating,
-    qualityRationale: `Fallback calibration assigned ${qualityLabelFromRating(qualityRating)} pending constitutional model review.`,
+    qualityRationale: `Checklist review unavailable in fallback mode. Provisional calibration assigned ${qualityLabelFromRating(qualityRating)} until constitutional scoring succeeds.`,
     model: "fallback-extractive-v1",
   };
 };
@@ -63,7 +118,10 @@ const parseSummaryJson = (rawText: string): SummaryResult | null => {
       bullets: validated.bullets,
       readSeconds: validated.readSeconds,
       qualityRating: validated.qualityRating,
-      qualityRationale: validated.qualityRationale,
+      qualityRationale: buildQualityRationale({
+        qualityChecklist: validated.qualityChecklist,
+        qualityRationale: validated.qualityRationale,
+      }),
       model: env.openAiModel,
     };
   } catch {
@@ -84,15 +142,17 @@ export const summarizeArticle = async (
   const prompt = [
     "You create rapid pre-read summaries for thoughtful readers.",
     "Output strict JSON only with this schema:",
-    '{"bullets": string[4-8], "readSeconds": integer(10-30), "qualityRating": enum, "qualityRationale": string}',
+    '{"bullets": string[4-8], "readSeconds": integer(10-30), "qualityRating": enum, "qualityChecklist": {scopeFit: string, technicalDepth: string, novelty: string, evidenceQuality: string, reasoningQuality: string, practicalValue: string, clarity: string, penalties: string}, "qualityRationale": string}',
     "Bullets must capture argument, evidence, assumptions, and one potential weakness.",
     "Each bullet should be 10-24 words and concrete.",
     "Quality rating must follow the Lloyd's Constitution exactly.",
+    "Before picking qualityRating, complete the qualityChecklist fields as your reasoning trace ('show your work').",
+    "Each checklist field should be concise (6-18 words) and grounded in the article text.",
     "Choose qualityRating from this exact enum:",
     articleQualityRatingValues.join(", "),
     "Keep distribution roughly calibrated over many links:",
     articleQualityScalePrompt,
-    "qualityRationale must be one sentence under 40 words, tied to evidence quality, reasoning quality, and practical value.",
+    "qualityRationale must be a short (1-2 sentence) conclusion that summarizes how the checklist led to the final rating.",
     "No markdown, no numbering, no extra keys.",
     "--- Constitution Reference ---",
     `Canonical URL: ${constitution.referenceUrl}`,
@@ -113,7 +173,7 @@ export const summarizeArticle = async (
           content: prompt,
         },
       ],
-      max_output_tokens: 600,
+      max_output_tokens: 900,
       temperature: 0.2,
     });
 
