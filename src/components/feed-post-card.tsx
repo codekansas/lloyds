@@ -4,10 +4,33 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { togglePostBookmarkAction } from "@/actions/bookmark";
+import { QualityRatingExplainer } from "@/components/quality-rating-explainer";
 import { qualityLabelFromRating } from "@/lib/article-quality";
 
 const summaryPreviewBulletCount = 2;
 const excerptPreviewCharacterCount = 220;
+const summaryBulletMaxCharacterCount = 260;
+
+const clampText = (value: string, maxLength: number): string => {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+};
+
+const sanitizeDisplayText = (value: string): string => {
+  return value
+    .replace(/\r/g, "\n")
+    .replace(/^\s*url source:.*$/gim, " ")
+    .replace(/^\s*markdown content:\s*/gim, " ")
+    .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/={2,}/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
 
 const buildExcerptPreview = (
   excerpt: string | null,
@@ -15,7 +38,7 @@ const buildExcerptPreview = (
   preview: string;
   hidden: string | null;
 } => {
-  const normalizedExcerpt = excerpt?.trim();
+  const normalizedExcerpt = excerpt ? sanitizeDisplayText(excerpt) : null;
 
   if (!normalizedExcerpt) {
     return {
@@ -60,29 +83,33 @@ const buildSummaryContent = ({
   }
 
   if (summaryStatus === "COMPLETE") {
-    if (summaryBullets.length === 0) {
+    const cleanedBullets = summaryBullets
+      .map((bullet) => clampText(sanitizeDisplayText(bullet), summaryBulletMaxCharacterCount))
+      .filter((bullet) => bullet.length > 0);
+
+    if (cleanedBullets.length === 0) {
       return {
         preview: <p>Summary unavailable for this item.</p>,
         overflow: null,
       };
     }
 
-    const previewBullets = summaryBullets.slice(0, summaryPreviewBulletCount);
-    const hiddenBullets = summaryBullets.slice(summaryPreviewBulletCount);
+    const previewBullets = cleanedBullets.slice(0, summaryPreviewBulletCount);
+    const hiddenBullets = cleanedBullets.slice(summaryPreviewBulletCount);
 
     return {
       preview: (
         <ul className="feed-summary-preview">
-          {previewBullets.map((bullet) => (
-            <li key={bullet}>{bullet}</li>
+          {previewBullets.map((bullet, idx) => (
+            <li key={`${idx}-${bullet}`}>{bullet}</li>
           ))}
         </ul>
       ),
       overflow:
         hiddenBullets.length > 0 ? (
           <ul>
-            {hiddenBullets.map((bullet) => (
-              <li key={bullet}>{bullet}</li>
+            {hiddenBullets.map((bullet, idx) => (
+              <li key={`${idx}-${bullet}`}>{bullet}</li>
             ))}
           </ul>
         ) : null,
@@ -154,12 +181,11 @@ export const FeedPostCard = ({
     <article className="surface feed-card" data-testid={`feed-post-${postId}`}>
       <header className="feed-card-header">
         <div className="feed-card-meta">
-          <details className="quality-rating-details">
-            <summary className="quality-rating-summary" aria-label={`Show quality reasoning for ${qualityLabel}`}>
-              <span className={qualityClassName}>{qualityLabel}</span>
-            </summary>
-            <p className="quality-rating-explanation">{qualityExplanation}</p>
-          </details>
+          <QualityRatingExplainer
+            qualityLabel={qualityLabel}
+            qualityClassName={qualityClassName}
+            qualityExplanation={qualityExplanation}
+          />
           <span className="chip">{sourceLabel}</span>
           <span className="chip">{ageLabel}</span>
           {domain ? <span className="chip">{domain}</span> : null}

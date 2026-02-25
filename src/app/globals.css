@@ -449,6 +449,8 @@ button {
   margin: 0;
   line-height: 1.2;
   font-size: 1.35rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .feed-card-header h2 a {
@@ -473,44 +475,78 @@ button {
   color: color-mix(in srgb, var(--quality-tier-color) 76%, var(--ink));
 }
 
-.quality-rating-details {
-  display: contents;
-}
-
-.quality-rating-summary {
-  list-style: none;
-  cursor: pointer;
+.quality-rating-trigger {
+  border: 0;
+  background: transparent;
+  padding: 0;
   display: inline-flex;
   align-items: center;
+  cursor: pointer;
 }
 
-.quality-rating-summary::-webkit-details-marker {
-  display: none;
-}
-
-.quality-rating-summary::marker {
-  content: "";
-}
-
-.quality-rating-summary .quality-pill {
+.quality-rating-trigger .quality-pill {
   transition: background-color 140ms ease, border-color 140ms ease;
 }
 
-.quality-rating-details[open] .quality-pill {
+.quality-rating-trigger:hover .quality-pill,
+.quality-rating-trigger:focus-visible .quality-pill {
   --pill-border: color-mix(in srgb, var(--quality-tier-color) 65%, var(--line-accent));
   --pill-surface: color-mix(in srgb, var(--quality-tier-color) 20%, var(--surface-chip));
 }
 
-.quality-rating-explanation {
-  margin: 0;
-  flex-basis: 100%;
-  order: 10;
-  max-width: 52ch;
+.quality-rating-trigger:focus-visible {
+  outline: none;
+}
+
+.quality-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(23, 18, 10, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.quality-modal {
+  width: min(56rem, 100%);
+  max-height: min(85vh, 46rem);
+  overflow: auto;
   border: 1px solid var(--line);
   background: var(--surface-panel);
-  padding: 0.4rem 0.5rem;
-  font-size: 0.76rem;
-  line-height: 1.42;
+  box-shadow: var(--shadow-masthead);
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.quality-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.quality-modal-header h3 {
+  margin: 0;
+  font-family: var(--font-masthead), serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 1.1rem;
+}
+
+.quality-modal-close {
+  flex-shrink: 0;
+}
+
+.quality-modal-explanation {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.58;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .quality-pill::before {
@@ -573,6 +609,13 @@ button {
 
 .feed-summary p {
   margin: 0.45rem 0 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.feed-summary li {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .feed-summary-more {

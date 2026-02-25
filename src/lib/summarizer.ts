@@ -27,7 +27,7 @@ const summarySchema = z.object({
   readSeconds: z.number().int().min(10).max(30),
   qualityRating: z.enum(articleQualityRatingValues),
   qualityChecklist: qualityChecklistSchema.optional(),
-  qualityRationale: z.string().min(24).max(320),
+  qualityRationale: z.string().min(24).max(1200),
 });
 
 export type SummaryResult = {
@@ -51,6 +51,53 @@ const trimToMax = (value: string, maxLength: number): string => {
   }
 
   return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+};
+
+const normalizeArticleText = (value: string): string => {
+  return value
+    .replace(/\r/g, "\n")
+    .replace(/^\s*url source:.*$/gim, " ")
+    .replace(/^\s*markdown content:\s*/gim, " ")
+    .replace(/^\s*=+\s*$/gm, " ")
+    .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const sanitizeSummaryBullet = (value: string): string => {
+  const normalized = normalizeArticleText(value)
+    .replace(/\b(url source|markdown content)\b:?/gi, " ")
+    .replace(/={2,}/g, " ")
+    .replace(/\s+/g, " ");
+
+  return trimToMax(cleanSentence(normalized), 220);
+};
+
+const dedupeBullets = (bullets: string[]): string[] => {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const bullet of bullets) {
+    const key = bullet.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(bullet);
+  }
+
+  return deduped;
+};
+
+const normalizeSummaryBullets = (bullets: string[]): string[] => {
+  const cleaned = bullets
+    .map((bullet) => sanitizeSummaryBullet(bullet))
+    .filter((bullet) => bullet.length >= 24);
+
+  return dedupeBullets(cleaned).slice(0, 8);
 };
 
 const summarizeChecklistForRationale = (checklist: z.infer<typeof qualityChecklistSchema>): string => {
@@ -78,27 +125,43 @@ const buildQualityRationale = ({
   qualityRationale: string;
   qualityChecklist?: z.infer<typeof qualityChecklistSchema>;
 }): string => {
-  const normalizedRationale = trimToMax(cleanSentence(qualityRationale), 220);
+  const normalizedRationale = trimToMax(cleanSentence(qualityRationale), 960);
 
   if (!qualityChecklist) {
     return normalizedRationale;
   }
 
   const checklistSummary = summarizeChecklistForRationale(qualityChecklist);
-  return trimToMax(`Checklist review: ${checklistSummary} Conclusion: ${normalizedRationale}`, 320);
+  return trimToMax(`${normalizedRationale}\n\nChecklist signals: ${checklistSummary}`, 1200);
 };
 
 const fallbackSummarize = (title: string, articleUrl: string, articleText: string): SummaryResult => {
-  const sentences = articleText
+  const normalizedArticleText = normalizeArticleText(articleText);
+  const sentences = normalizedArticleText
     .split(/(?<=[.!?])\s+/)
-    .map(cleanSentence)
-    .filter((sentence) => sentence.length > 45)
+    .map((sentence) => sanitizeSummaryBullet(sentence))
+    .filter((sentence) => {
+      if (sentence.length < 48 || sentence.length > 220) {
+        return false;
+      }
+
+      return !/(cookie|privacy policy|subscribe|sign in|table of contents|skip to content)/i.test(sentence);
+    })
     .slice(0, 6);
 
-  const bullets = [
+  const fallbackBullets = [
     `Core thesis: ${title}.`,
-    ...sentences.slice(0, 4).map((sentence) => sentence.slice(0, 180)),
+    ...sentences.slice(0, 5),
   ].slice(0, 6);
+  const normalizedBullets = normalizeSummaryBullets(fallbackBullets);
+  const bullets = normalizedBullets.length >= 4
+    ? normalizedBullets
+    : [
+        `Core thesis: ${sanitizeSummaryBullet(title)}.`,
+        "The retrieved text suggests technical content, but source extraction quality was limited.",
+        "Method and evidence details should be verified directly in the original article.",
+        "Use this brief as provisional context until a full model summary succeeds.",
+      ];
   const qualityRating = assignQualityRatingFromHash(articleUrl);
 
   return {
@@ -111,11 +174,40 @@ const fallbackSummarize = (title: string, articleUrl: string, articleText: strin
 };
 
 const parseSummaryJson = (rawText: string, model: string): SummaryResult | null => {
+  const extractJsonObject = (value: string): string | null => {
+    const fencedMatch = value.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidates = [value, fencedMatch?.[1] ?? ""].filter((candidate) => candidate.trim().length > 0);
+
+    for (const candidate of candidates) {
+      const trimmed = candidate.trim();
+      const firstBraceIdx = trimmed.indexOf("{");
+      const lastBraceIdx = trimmed.lastIndexOf("}");
+      if (firstBraceIdx === -1 || lastBraceIdx <= firstBraceIdx) {
+        continue;
+      }
+
+      return trimmed.slice(firstBraceIdx, lastBraceIdx + 1);
+    }
+
+    return null;
+  };
+
   try {
-    const parsed = JSON.parse(rawText);
+    const jsonPayload = extractJsonObject(rawText);
+    if (!jsonPayload) {
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonPayload);
     const validated = summarySchema.parse(parsed);
+    const normalizedBullets = normalizeSummaryBullets(validated.bullets);
+
+    if (normalizedBullets.length < 4) {
+      return null;
+    }
+
     return {
-      bullets: validated.bullets,
+      bullets: normalizedBullets,
       readSeconds: validated.readSeconds,
       qualityRating: validated.qualityRating,
       qualityRationale: buildQualityRationale({
@@ -140,6 +232,7 @@ export const summarizeArticle = async (
 
   const constitution = await getConstitutionText();
   const gradingModel = env.constitutionGraderModel;
+  const normalizedArticleText = normalizeArticleText(articleText);
   const prompt = [
     "You create rapid pre-read summaries for thoughtful readers.",
     "Output strict JSON only with this schema:",
@@ -157,7 +250,7 @@ export const summarizeArticle = async (
     "If politics/emotion-first framing dominates and technical depth is weak, score Common Rumour.",
     "Do not score above Merchant's Word for politics/emotion-heavy content unless technical analysis is clearly dominant.",
     "When this penalty applies, explicitly mention it in qualityChecklist.penalties and qualityRationale.",
-    "qualityRationale must be a short (1-2 sentence) conclusion that summarizes how the checklist led to the final rating.",
+    "qualityRationale must be 5-6 complete sentences (roughly 90-170 words) that explain how the checklist reasoning led to the final rating.",
     "No markdown, no numbering, no extra keys.",
     "--- Constitution Reference ---",
     `Canonical URL: ${constitution.referenceUrl}`,
@@ -166,7 +259,7 @@ export const summarizeArticle = async (
     "---",
     `Title: ${title}`,
     `URL: ${articleUrl}`,
-    `Article:\n${articleText}`,
+    `Article:\n${normalizedArticleText}`,
   ].join("\n");
 
   try {
@@ -178,7 +271,7 @@ export const summarizeArticle = async (
           content: prompt,
         },
       ],
-      max_output_tokens: 900,
+      max_output_tokens: 1200,
       temperature: 0.2,
     });
 

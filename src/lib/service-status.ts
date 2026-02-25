@@ -63,6 +63,8 @@ const SUMMARY_PENDING_WARN_AGE_MINUTES = 20;
 const SUMMARY_PENDING_OUTAGE_AGE_MINUTES = 120;
 const SUMMARY_PENDING_WARN_COUNT_FLOOR = 12;
 const SUMMARY_PENDING_OUTAGE_COUNT_FLOOR = 40;
+const SUMMARY_BACKLOG_SLOW_DRAIN_WARN_HOURS = 8;
+const SUMMARY_BACKLOG_SLOW_DRAIN_OUTAGE_HOURS = 18;
 const RUN_FAILURE_RATIO_WINDOW = 6;
 const FEED_STALE_MINUTES = 6 * 60;
 const FEED_STALE_WARN_RATIO = 0.18;
@@ -135,6 +137,35 @@ export const formatMinutesAsAge = (minutes: number | null): string => {
 
 const formatPercent = (value: number): string => {
   return `${Math.round(value * 100)}%`;
+};
+
+const formatNetQueueDelta = (value: number): string => {
+  if (value > 0) {
+    return `+${value}`;
+  }
+
+  return String(value);
+};
+
+const estimateQueueDrainHours = ({
+  pendingCount,
+  recentPostsCreatedLastHour,
+  recentSummariesCompletedLastHour,
+}: {
+  pendingCount: number;
+  recentPostsCreatedLastHour: number;
+  recentSummariesCompletedLastHour: number;
+}): number | null => {
+  if (pendingCount <= 0) {
+    return 0;
+  }
+
+  const netDrainPerHour = recentSummariesCompletedLastHour - recentPostsCreatedLastHour;
+  if (netDrainPerHour <= 0) {
+    return null;
+  }
+
+  return pendingCount / netDrainPerHour;
 };
 
 const getJobMoment = (job: JobRunSnapshot | null): Date | null => {
@@ -459,13 +490,30 @@ const buildSummaryService = ({
 
   const dynamicWarnQueue = Math.max(SUMMARY_PENDING_WARN_COUNT_FLOOR, recentPostsCreatedLastHour * 2);
   const dynamicOutageQueue = Math.max(SUMMARY_PENDING_OUTAGE_COUNT_FLOOR, recentPostsCreatedLastHour * 4);
+  const netQueueDeltaLastHour = recentPostsCreatedLastHour - recentSummariesCompletedLastHour;
+  const queueDrainHours = estimateQueueDrainHours({
+    pendingCount,
+    recentPostsCreatedLastHour,
+    recentSummariesCompletedLastHour,
+  });
+  const queueIsStalledOrGrowing = pendingCount > 0 && queueDrainHours === null;
+  const queueClearEta = queueDrainHours === null ? "unknown" : formatMinutesAsAge(Math.ceil(queueDrainHours * 60));
+  const queueDrainOutageRisk = queueDrainHours !== null && queueDrainHours >= SUMMARY_BACKLOG_SLOW_DRAIN_OUTAGE_HOURS;
 
   if (pendingCount >= dynamicOutageQueue && pendingOlderWarnCount > 0) {
-    checks.push({
-      id: "summary-queue-outage",
-      state: "outage",
-      message: `Summary backlog is overloaded (${pendingCount} pending).`,
-    });
+    if (queueIsStalledOrGrowing || queueDrainOutageRisk) {
+      checks.push({
+        id: "summary-queue-outage",
+        state: "outage",
+        message: `Summary backlog is overloaded (${pendingCount} pending).`,
+      });
+    } else {
+      checks.push({
+        id: "summary-queue-draining-degraded",
+        state: "degraded",
+        message: `Summary backlog is elevated (${pendingCount} pending) but draining (~${queueClearEta} to clear).`,
+      });
+    }
   } else if (pendingCount >= dynamicWarnQueue) {
     checks.push({
       id: "summary-queue-degraded",
@@ -475,11 +523,19 @@ const buildSummaryService = ({
   }
 
   if (pendingOlderOutageCount > 0) {
-    checks.push({
-      id: "summary-aged-pending-outage",
-      state: "outage",
-      message: `${pendingOlderOutageCount} summaries have waited over ${SUMMARY_PENDING_OUTAGE_AGE_MINUTES} minutes.`,
-    });
+    if (queueIsStalledOrGrowing || queueDrainOutageRisk) {
+      checks.push({
+        id: "summary-aged-pending-outage",
+        state: "outage",
+        message: `${pendingOlderOutageCount} summaries have waited over ${SUMMARY_PENDING_OUTAGE_AGE_MINUTES} minutes.`,
+      });
+    } else {
+      checks.push({
+        id: "summary-aged-pending-draining-degraded",
+        state: "degraded",
+        message: `${pendingOlderOutageCount} summaries are older than ${SUMMARY_PENDING_OUTAGE_AGE_MINUTES} minutes, but queue is draining.`,
+      });
+    }
   } else if (pendingOlderWarnCount > 0) {
     checks.push({
       id: "summary-aged-pending-degraded",
@@ -506,6 +562,18 @@ const buildSummaryService = ({
     });
   }
 
+  if (
+    queueDrainHours !== null &&
+    queueDrainHours >= SUMMARY_BACKLOG_SLOW_DRAIN_WARN_HOURS &&
+    queueDrainHours < SUMMARY_BACKLOG_SLOW_DRAIN_OUTAGE_HOURS
+  ) {
+    checks.push({
+      id: "summary-slow-drain-degraded",
+      state: "degraded",
+      message: `Summary queue is draining slowly (~${queueClearEta} to clear).`,
+    });
+  }
+
   if (runSignals.latestSuccess === null && pendingCount > 0) {
     checks.push({
       id: "summary-no-success-with-pending",
@@ -528,10 +596,14 @@ const buildSummaryService = ({
     `Pending older than ${SUMMARY_PENDING_OUTAGE_AGE_MINUTES}m: ${pendingOlderOutageCount}`,
     `New posts in last hour: ${recentPostsCreatedLastHour}`,
     `Summaries completed in last hour: ${recentSummariesCompletedLastHour}`,
+    `Queue net change (last hour): ${formatNetQueueDelta(netQueueDeltaLastHour)}`,
+    `Estimated queue clear time at current pace: ${queueClearEta}`,
     `Consecutive summary-job failures: ${runSignals.consecutiveFailures}`,
     failureRateDetail,
     formatJobLine("Latest run", runSignals.latestRun, now),
     formatJobLine("Latest success", runSignals.latestSuccess, now),
+    `Latest run items processed: ${runSignals.latestRun?.itemsProcessed ?? "n/a"}`,
+    `Latest run items completed: ${runSignals.latestRun?.itemsCreated ?? "n/a"}`,
     ...checks.filter((check) => check.state !== "operational").map(formatCheckLine),
   ];
 
