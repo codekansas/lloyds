@@ -413,6 +413,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "AUTH_URL", value = "https://${var.domain_name}" },
         { name = "NEXTAUTH_URL", value = "https://${var.domain_name}" },
         { name = "OPENAI_MODEL", value = var.openai_model },
+        { name = "OPENAI_CONSTITUTION_GRADER_MODEL", value = var.openai_constitution_grader_model },
         { name = "GOOGLE_CLIENT_ID", value = var.google_client_id },
         { name = "GITHUB_CLIENT_ID", value = var.github_client_id },
       ]

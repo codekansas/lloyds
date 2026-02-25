@@ -19,6 +19,8 @@ env:
   STAGING_ECS_CLUSTER: lloyds-staging-cluster
   STAGING_ECS_SERVICE: lloyds-staging
   STAGING_ECS_CONTAINER_NAME: lloyds-staging
+  OPENAI_MODERATION_MODEL: gpt-5.1-mini
+  OPENAI_CONSTITUTION_GRADER_MODEL: gpt-5.2
   PRODUCTION_AWS_ROLE_ARN: arn:aws:iam::752725527807:role/lloyds-production-github-actions
   PRODUCTION_ECR_REPOSITORY_URL: 752725527807.dkr.ecr.us-east-1.amazonaws.com/lloyds-production
   PRODUCTION_ECS_CLUSTER: lloyds-production-cluster
@@ -78,6 +80,8 @@ jobs:
           IMAGE_URI: ${{ steps.image.outputs.image_uri }}
           APP_ENV: staging
           PRISMA_DB_PUSH_ON_BOOT: "true"
+          OPENAI_MODEL: ${{ env.OPENAI_MODERATION_MODEL }}
+          OPENAI_CONSTITUTION_GRADER_MODEL: ${{ env.OPENAI_CONSTITUTION_GRADER_MODEL }}
 
   smoke_staging:
     runs-on: ubuntu-latest
@@ -283,3 +287,5 @@ jobs:
           IMAGE_URI: ${{ env.PRODUCTION_ECR_REPOSITORY_URL }}:${{ needs.deploy_staging.outputs.image_tag }}
           APP_ENV: production
           PRISMA_DB_PUSH_ON_BOOT: "true"
+          OPENAI_MODEL: ${{ env.OPENAI_MODERATION_MODEL }}
+          OPENAI_CONSTITUTION_GRADER_MODEL: ${{ env.OPENAI_CONSTITUTION_GRADER_MODEL }}

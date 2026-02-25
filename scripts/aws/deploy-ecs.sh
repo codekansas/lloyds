@@ -17,6 +17,8 @@ required_var IMAGE_URI
 required_var APP_ENV
 
 PRISMA_DB_PUSH_ON_BOOT="${PRISMA_DB_PUSH_ON_BOOT:-true}"
+OPENAI_MODEL="${OPENAI_MODEL:-}"
+OPENAI_CONSTITUTION_GRADER_MODEL="${OPENAI_CONSTITUTION_GRADER_MODEL:-}"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -44,17 +46,26 @@ jq \
   --arg CONTAINER_NAME "$ECS_CONTAINER_NAME" \
   --arg APP_ENV "$APP_ENV" \
   --arg PRISMA_DB_PUSH_ON_BOOT "$PRISMA_DB_PUSH_ON_BOOT" \
+  --arg OPENAI_MODEL "$OPENAI_MODEL" \
+  --arg OPENAI_CONSTITUTION_GRADER_MODEL "$OPENAI_CONSTITUTION_GRADER_MODEL" \
   '
   .containerDefinitions |= map(
     if .name == $CONTAINER_NAME then
       .image = $IMAGE_URI
       | .environment = (
           (.environment // [])
-          | map(select(.name != "APP_ENV" and .name != "PRISMA_DB_PUSH_ON_BOOT"))
+          | map(select(
+              .name != "APP_ENV"
+              and .name != "PRISMA_DB_PUSH_ON_BOOT"
+              and .name != "OPENAI_MODEL"
+              and .name != "OPENAI_CONSTITUTION_GRADER_MODEL"
+            ))
           + [
               { "name": "APP_ENV", "value": $APP_ENV },
               { "name": "PRISMA_DB_PUSH_ON_BOOT", "value": $PRISMA_DB_PUSH_ON_BOOT }
             ]
+          + (if ($OPENAI_MODEL | length) > 0 then [{ "name": "OPENAI_MODEL", "value": $OPENAI_MODEL }] else [] end)
+          + (if ($OPENAI_CONSTITUTION_GRADER_MODEL | length) > 0 then [{ "name": "OPENAI_CONSTITUTION_GRADER_MODEL", "value": $OPENAI_CONSTITUTION_GRADER_MODEL }] else [] end)
         )
     else . end
   )
@@ -91,4 +102,4 @@ aws ecs wait services-stable \
   --cluster "$ECS_CLUSTER" \
   --services "$ECS_SERVICE"
 
-echo "Deployed image $IMAGE_URI to $ECS_CLUSTER/$ECS_SERVICE (APP_ENV=$APP_ENV, PRISMA_DB_PUSH_ON_BOOT=$PRISMA_DB_PUSH_ON_BOOT)"
+echo "Deployed image $IMAGE_URI to $ECS_CLUSTER/$ECS_SERVICE (APP_ENV=$APP_ENV, PRISMA_DB_PUSH_ON_BOOT=$PRISMA_DB_PUSH_ON_BOOT, OPENAI_MODEL=${OPENAI_MODEL:-unchanged}, OPENAI_CONSTITUTION_GRADER_MODEL=${OPENAI_CONSTITUTION_GRADER_MODEL:-unchanged})"
