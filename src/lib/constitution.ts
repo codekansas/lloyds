@@ -133,8 +133,9 @@ Do not force quotas in a tiny batch. Use these targets for calibration when unce
 
 When rating an article, provide:
 
-- One rating from the five-level scale.
-- A short rationale tied to technical depth, novelty, evidence quality, and practical value.
+- A detailed checklist pass over the key dimensions (scope fit, technical depth, novelty, evidence quality, reasoning quality, practical value, clarity, and penalties).
+- One rating from the five-level scale after completing the checklist.
+- A short summary of how the checklist led to the selected rating.
 - No mention of popularity metrics (karma, likes, shares) as quality evidence.
 - If relevant, note that politics-first framing reduced the score due to poor technical focus.
 `;
