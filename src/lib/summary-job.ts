@@ -1,15 +1,29 @@
 import { prisma } from "@/lib/prisma";
 import { fetchArticleText } from "@/lib/article-text";
+import { logEvent } from "@/lib/observability";
 import { summarizeArticle } from "@/lib/summarizer";
 
 export type SummaryJobResult = {
+  batchSize: number;
   processed: number;
   completed: number;
   failed: number;
   failures: string[];
 };
 
-export const processPendingSummaries = async (batchSize = 12): Promise<SummaryJobResult> => {
+const DEFAULT_SUMMARY_BATCH_SIZE = 12;
+const MAX_SUMMARY_BATCH_SIZE = 60;
+
+const normalizeBatchSize = (requestedBatchSize: number | null | undefined): number => {
+  if (typeof requestedBatchSize !== "number" || Number.isNaN(requestedBatchSize)) {
+    return DEFAULT_SUMMARY_BATCH_SIZE;
+  }
+
+  return Math.max(1, Math.min(MAX_SUMMARY_BATCH_SIZE, Math.trunc(requestedBatchSize)));
+};
+
+export const processPendingSummaries = async (requestedBatchSize?: number): Promise<SummaryJobResult> => {
+  const batchSize = normalizeBatchSize(requestedBatchSize);
   const pendingPosts = await prisma.post.findMany({
     where: {
       summaryStatus: "PENDING",
@@ -19,6 +33,7 @@ export const processPendingSummaries = async (batchSize = 12): Promise<SummaryJo
   });
 
   const result: SummaryJobResult = {
+    batchSize,
     processed: pendingPosts.length,
     completed: 0,
     failed: 0,
@@ -66,6 +81,15 @@ export const processPendingSummaries = async (batchSize = 12): Promise<SummaryJo
       result.failed += 1;
     }
   }
+
+  logEvent("info", "summary.job.batch.completed", {
+    requestedBatchSize: requestedBatchSize ?? null,
+    batchSize,
+    processed: result.processed,
+    completed: result.completed,
+    failed: result.failed,
+    failureCount: result.failures.length,
+  });
 
   return result;
 };
