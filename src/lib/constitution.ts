@@ -38,11 +38,13 @@ Prioritize work that materially improves understanding in one or more of these a
 
 ### Explicit Deprioritization
 
-Downrank content where politics, culture war, or ideological signaling is the primary payload and technical/scientific substance is secondary.
+Strongly deprioritize content where politics, culture war, ideology, or emotional arousal is the primary payload and technical/scientific substance is secondary.
 
 - Pure political commentary, electoral speculation, outrage cycles, and partisan rhetoric should score low.
 - Policy or regulation posts are allowed only when they contain substantial technical or scientific analysis.
 - Social-media drama, personality feuds, and controversy farming should be treated as low quality.
+- Overtly emotional framing (rage-bait, fear appeals, moral grandstanding, identity signaling, or tribal dunking) should be treated as a major penalty.
+- If politics/emotion-first framing dominates and technical detail is thin, cap ratings at Common Rumour or Merchant's Word.
 
 ## Core Principles
 
@@ -71,6 +73,7 @@ Evaluate every article on these dimensions:
 Downgrade heavily for:
 
 - Politics-first or ideology-first framing with weak technical substance.
+- Overtly emotional, inflammatory, or manipulative framing that substitutes for evidence.
 - Clickbait framing, outrage bait, or controversy farming.
 - Unverifiable claims presented as facts.
 - Sweeping conclusions with weak or missing evidence.
@@ -138,7 +141,28 @@ When rating an article, provide:
 - A short summary of how the checklist led to the selected rating.
 - No mention of popularity metrics (karma, likes, shares) as quality evidence.
 - If relevant, note that politics-first framing reduced the score due to poor technical focus.
+- If relevant, explicitly note when overt emotional framing triggered a major penalty.
 `;
+
+const localConstitutionAddendumHeader = "## Local Enforcement Addendum";
+const localConstitutionAddendum = `
+${localConstitutionAddendumHeader}
+
+These rules are strict and override ambiguity in source material:
+
+- Strongly deprioritize political and overtly emotional content unless the technical/scientific analysis is clearly dominant.
+- If an article is mainly politics-first or emotion-first with limited technical evidence, do not rate above Merchant's Word.
+- If emotional or partisan rhetoric is central and technical depth is weak, prefer Common Rumour.
+- In qualityChecklist.penalties and qualityRationale, explicitly state when this penalty affected the final score.
+`.trim();
+
+const withLocalConstitutionAddendum = (text: string): string => {
+  if (text.includes(localConstitutionAddendumHeader)) {
+    return text;
+  }
+
+  return `${text.trim()}\n\n${localConstitutionAddendum}\n`;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
@@ -229,7 +253,7 @@ export const getConstitutionText = async (): Promise<{
   }
 
   try {
-    const text = await fetchConstitutionFromGist();
+    const text = withLocalConstitutionAddendum(await fetchConstitutionFromGist());
     cachedConstitution = {
       text,
       fetchedAt: now,
@@ -242,18 +266,19 @@ export const getConstitutionText = async (): Promise<{
       referenceUrl: constitutionGistUrl,
     };
   } catch {
+    const fallbackText = withLocalConstitutionAddendum(fallbackConstitutionText);
     cachedConstitution = {
-      text: fallbackConstitutionText,
+      text: fallbackText,
       fetchedAt: now,
       source: "fallback",
     };
 
     return {
-      text: fallbackConstitutionText,
+      text: fallbackText,
       source: "fallback",
       referenceUrl: constitutionGistUrl,
     };
   }
 };
 
-export const defaultConstitutionText = fallbackConstitutionText;
+export const defaultConstitutionText = withLocalConstitutionAddendum(fallbackConstitutionText);

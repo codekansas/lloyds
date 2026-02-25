@@ -3,6 +3,7 @@ import type { ArticleQualityRating } from "@prisma/client";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { togglePostBookmarkAction } from "@/actions/bookmark";
 import { qualityLabelFromRating } from "@/lib/article-quality";
 
 const summaryPreviewBulletCount = 2;
@@ -110,6 +111,9 @@ type FeedPostCardProps = {
   qualityRating: ArticleQualityRating | null;
   qualityRationale: string | null;
   commentsCount: number;
+  canBookmark: boolean;
+  isBookmarked: boolean;
+  bookmarkReturnTo: string;
 };
 
 export const FeedPostCard = ({
@@ -126,6 +130,9 @@ export const FeedPostCard = ({
   qualityRating,
   qualityRationale,
   commentsCount,
+  canBookmark,
+  isBookmarked,
+  bookmarkReturnTo,
 }: FeedPostCardProps) => {
   const ageLabel = publishedAt
     ? formatDistanceToNow(publishedAt, {
@@ -187,6 +194,19 @@ export const FeedPostCard = ({
         <Link href={`/feed/${postId}/comments`} className="btn btn-secondary">
           View comments ({commentsCount})
         </Link>
+        {canBookmark ? (
+          <form action={togglePostBookmarkAction}>
+            <input type="hidden" name="postId" value={postId} />
+            <input type="hidden" name="returnTo" value={bookmarkReturnTo} />
+            <button
+              type="submit"
+              className={isBookmarked ? "btn btn-primary feed-bookmark-button" : "btn btn-secondary feed-bookmark-button"}
+              data-bookmarked={isBookmarked}
+            >
+              {isBookmarked ? "Bookmarked" : "Bookmark"}
+            </button>
+          </form>
+        ) : null}
       </footer>
     </article>
   );

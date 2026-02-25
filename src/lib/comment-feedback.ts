@@ -1,5 +1,3 @@
-import { constitutionGistUrl } from "@/lib/constitution";
-
 const staticCommentErrorCopy: Record<string, string> = {
   "invalid-input": "Comment must include 2-4000 readable characters.",
   "invalid-parent": "One or more referenced parent comments were invalid.",
@@ -22,7 +20,71 @@ export const formatCommentPenaltyEndsAt = (rawValue: string): string | null => {
   return `${parsed.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 };
 
-const constitutionReminder = `Re-read the constitution before posting again: ${constitutionGistUrl}`;
+const constitutionLinkLabel = "Re-read the constitution before posting again.";
+
+export type CommentErrorFeedback = {
+  message: string;
+  constitutionLinkLabel?: string;
+};
+
+export const getCommentErrorFeedback = ({
+  commentError,
+  suspendedUntilIso = "",
+  violationCount = null,
+}: {
+  commentError: string;
+  suspendedUntilIso?: string;
+  violationCount?: number | null;
+}): CommentErrorFeedback | null => {
+  if (commentError === "comment-suspended") {
+    const formatted = formatCommentPenaltyEndsAt(suspendedUntilIso);
+
+    if (formatted) {
+      return {
+        message: `Comment permissions are suspended until ${formatted}.`,
+        constitutionLinkLabel,
+      };
+    }
+
+    return {
+      message: "Comment permissions are temporarily suspended.",
+      constitutionLinkLabel,
+    };
+  }
+
+  if (commentError === "constitution-violation") {
+    const violationSuffix = violationCount ? ` (violation #${violationCount})` : "";
+    const formatted = formatCommentPenaltyEndsAt(suspendedUntilIso);
+
+    if (formatted) {
+      return {
+        message: `Comment blocked by constitutional moderation${violationSuffix}. Comment permissions are suspended until ${formatted}.`,
+        constitutionLinkLabel,
+      };
+    }
+
+    if (violationCount === 1) {
+      return {
+        message: `Comment blocked by constitutional moderation${violationSuffix}. This is a warning with no suspension.`,
+        constitutionLinkLabel,
+      };
+    }
+
+    return {
+      message: `Comment blocked by constitutional moderation${violationSuffix}.`,
+      constitutionLinkLabel,
+    };
+  }
+
+  const staticCopy = staticCommentErrorCopy[commentError];
+  if (!staticCopy) {
+    return null;
+  }
+
+  return {
+    message: staticCopy,
+  };
+};
 
 export const getCommentErrorMessage = ({
   commentError,
@@ -33,26 +95,11 @@ export const getCommentErrorMessage = ({
   suspendedUntilIso?: string;
   violationCount?: number | null;
 }): string | null => {
-  if (commentError === "comment-suspended") {
-    const formatted = formatCommentPenaltyEndsAt(suspendedUntilIso);
+  const feedback = getCommentErrorFeedback({
+    commentError,
+    suspendedUntilIso,
+    violationCount,
+  });
 
-    if (formatted) {
-      return `Comment permissions are suspended until ${formatted}. ${constitutionReminder}`;
-    }
-
-    return `Comment permissions are temporarily suspended. ${constitutionReminder}`;
-  }
-
-  if (commentError === "constitution-violation") {
-    const violationSuffix = violationCount ? ` (violation #${violationCount})` : "";
-    const formatted = formatCommentPenaltyEndsAt(suspendedUntilIso);
-
-    if (formatted) {
-      return `Comment blocked by constitutional moderation${violationSuffix}. Comment permissions are suspended until ${formatted}. ${constitutionReminder}`;
-    }
-
-    return `Comment blocked by constitutional moderation${violationSuffix}. ${constitutionReminder}`;
-  }
-
-  return staticCommentErrorCopy[commentError] ?? null;
+  return feedback?.message ?? null;
 };

@@ -6,7 +6,7 @@ import { signInWithGithubAction, signInWithGoogleAction } from "@/actions/auth";
 import { auth } from "@/auth";
 import { FeedPostCard } from "@/components/feed-post-card";
 import { Flash } from "@/components/flash";
-import { getCommentErrorMessage } from "@/lib/comment-feedback";
+import { getCommentErrorFeedback } from "@/lib/comment-feedback";
 import { constitutionGistUrl } from "@/lib/constitution";
 import { curatedFeedsGistUrl } from "@/lib/curated-feeds";
 import { env } from "@/lib/env";
@@ -26,13 +26,7 @@ const parseBullets = (value: Prisma.JsonValue | null): string[] => {
   return value.filter((entry): entry is string => typeof entry === "string");
 };
 
-const dayMs = 24 * 60 * 60 * 1000;
-const dayOptionsCount = 4;
 const feedPageSize = 10;
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-});
 
 type FeedWindowMode = "rolling-24h" | "all-time";
 
@@ -60,18 +54,6 @@ const clampPage = (rawValue: string | string[] | undefined): number => {
   }
 
   return Math.max(1, parsed);
-};
-
-const buildWindowLabel = (dayOffset: number, now: Date): string => {
-  if (dayOffset === 0) {
-    return "Last 24 hours";
-  }
-
-  const end = new Date(now.valueOf() - dayOffset * dayMs);
-  const start = new Date(end.valueOf() - dayMs);
-  const inclusiveEnd = new Date(end.valueOf() - 1_000);
-
-  return `${dateFormatter.format(start)} - ${dateFormatter.format(inclusiveEnd)}`;
 };
 
 const buildFeedHref = ({
@@ -110,50 +92,54 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const dayOffset = clampDayOffset(query.dayOffset);
   const requestedPage = clampPage(query.page);
   const feedWindow = windowMode === "all-time" ? { mode: "all-time" as const } : { mode: "rolling-24h" as const, dayOffset };
-  const { posts: feedPosts, totalCount: totalRankedPosts, page: activePage, totalPages } = await getRankedFeedPosts({
+  const { posts: feedPosts, page: activePage, totalPages } = await getRankedFeedPosts({
     page: requestedPage,
     pageSize: feedPageSize,
     window: feedWindow,
   });
-  const [sourceCount, pendingSummaries] = await Promise.all([
-    prisma.feedSource.count({
-      where: {
-        isActive: true,
-      },
-    }),
-    prisma.post.count({
-      where: {
-        summaryStatus: "PENDING",
-      },
-    }),
-  ]);
+  const visiblePostIds = feedPosts.map((post) => post.id);
+  const currentFeedHref = buildFeedHref({
+    windowMode,
+    dayOffset,
+    page: activePage,
+  });
+  const bookmarkRecords =
+    session?.user?.id && visiblePostIds.length > 0
+      ? await prisma.postBookmark.findMany({
+          where: {
+            userId: session.user.id,
+            postId: {
+              in: visiblePostIds,
+            },
+          },
+          select: {
+            postId: true,
+          },
+        })
+      : [];
+  const bookmarkedPostIds = new Set(bookmarkRecords.map((bookmark) => bookmark.postId));
 
   const commented = hasSearchFlag(query, "commented");
   const commentError = readSearchParam(query, "commentError");
   const commentSuspendedUntil = readSearchParam(query, "commentSuspendedUntil");
   const commentViolationCount = readSearchParamNumber(query, "violationCount");
-  const commentErrorMessage = getCommentErrorMessage({
+  const commentErrorFeedback = getCommentErrorFeedback({
     commentError,
     suspendedUntilIso: commentSuspendedUntil,
     violationCount: commentViolationCount,
   });
-  const now = new Date();
-  const activeWindowLabel = windowMode === "all-time" ? "All time" : buildWindowLabel(dayOffset, now);
-  const rankedPostsLabel =
-    totalRankedPosts === 0
-      ? "0 ranked posts"
-      : `${(activePage - 1) * feedPageSize + 1}-${(activePage - 1) * feedPageSize + feedPosts.length} of ${totalRankedPosts} ranked posts`;
-
-  const dayOptions = Array.from({ length: Math.min(dayOptionsCount, maxFeedDayOffset + 1) }, (_, idx) => ({
-    href: buildFeedHref({
-      windowMode: "rolling-24h",
-      dayOffset: idx,
-      page: 1,
-    }),
-    label: idx === 0 ? "Last 24h" : buildWindowLabel(idx, now),
-    active: windowMode !== "all-time" && dayOffset === idx,
-  }));
-
+  const bookmarkState = readSearchParam(query, "bookmark");
+  const bookmarkMessage =
+    bookmarkState === "saved"
+      ? "Article bookmarked."
+      : bookmarkState === "removed"
+        ? "Bookmark removed."
+        : bookmarkState === "post-not-found"
+          ? "Bookmark failed. Article was not found."
+          : bookmarkState === "invalid"
+            ? "Bookmark request was invalid."
+            : "";
+  const bookmarkMessageTone = bookmarkState === "saved" || bookmarkState === "removed" ? "success" : "error";
   const previousPageHref = buildFeedHref({
     windowMode,
     dayOffset,
@@ -176,38 +162,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <div className="layout-split">
         <div className="layout-stack">
           {commented ? <Flash tone="success" message="Comment posted." /> : null}
-          {commentErrorMessage ? <Flash tone="error" message={commentErrorMessage} /> : null}
-
-          <div className="inline-cluster feed-window-row">
-            {dayOptions.map((option) => (
-              <Link
-                key={option.href}
-                href={option.href}
-                className="chip feed-window-pill"
-                data-active={option.active}
-              >
-                {option.label}
-              </Link>
-            ))}
-            <Link
-              href={buildFeedHref({
-                windowMode: "all-time",
-                dayOffset,
-                page: 1,
-              })}
-              className="chip feed-window-pill"
-              data-active={windowMode === "all-time"}
-            >
-              All time
-            </Link>
-          </div>
-
-          <div className="inline-cluster">
-            <span className="chip">{rankedPostsLabel}</span>
-            <span className="chip">{activeWindowLabel}</span>
-            <span className="chip">{sourceCount} active feed sources</span>
-            <span className="chip">{pendingSummaries} summaries pending</span>
-          </div>
+          {commentErrorFeedback ? (
+            <Flash
+              tone="error"
+              message={
+                <>
+                  {commentErrorFeedback.message}{" "}
+                  {commentErrorFeedback.constitutionLinkLabel ? (
+                    <a href={constitutionGistUrl} target="_blank" rel="noreferrer noopener" className="flash-link">
+                      {commentErrorFeedback.constitutionLinkLabel}
+                    </a>
+                  ) : null}
+                </>
+              }
+            />
+          ) : null}
+          {bookmarkMessage ? <Flash tone={bookmarkMessageTone} message={bookmarkMessage} /> : null}
 
           <div className="feed-grid">
             {feedPosts.length === 0 ? (
@@ -232,6 +202,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   qualityRating={post.qualityRating}
                   qualityRationale={post.qualityRationale}
                   commentsCount={post._count.comments}
+                  canBookmark={Boolean(session?.user && hasAcceptedManifesto)}
+                  isBookmarked={bookmarkedPostIds.has(post.id)}
+                  bookmarkReturnTo={currentFeedHref}
                 />
               ))
             )}

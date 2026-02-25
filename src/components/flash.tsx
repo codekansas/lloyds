@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
+
 type FlashProps = {
-  message: string;
+  message: ReactNode;
   tone?: "info" | "success" | "error";
 };
 

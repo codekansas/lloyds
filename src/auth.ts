@@ -36,7 +36,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "database",
   },
-  trustHost: process.env.AUTH_TRUST_HOST === "true",
+  trustHost: process.env.AUTH_TRUST_HOST === "true" || process.env.NODE_ENV !== "production",
   providers,
   callbacks: {
     session: async ({ session, user }) => {

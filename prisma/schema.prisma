@@ -67,6 +67,9 @@ model User {
   commentSuspendedUntil DateTime?
   accountBannedAt     DateTime?
   accountBanReason    String?         @db.Text
+  notifyCommentRepliesInApp Boolean   @default(false)
+  notifyCommentRepliesEmail Boolean   @default(false)
+  lastReplyEmailSentAt DateTime?
   headline            String?
   bio                 String?         @db.Text
   interests           String?         @db.Text
@@ -78,6 +81,9 @@ model User {
   sessions            Session[]
   authoredPosts       Post[]          @relation("PostSubmittedBy")
   authoredComments    PostComment[]   @relation("PostCommentAuthor")
+  bookmarks           PostBookmark[]
+  replyNotifications  CommentReplyNotification[] @relation("CommentReplyNotificationRecipient")
+  sentReplyNotifications CommentReplyNotification[] @relation("CommentReplyNotificationActor")
   profileSignals      ProfileSignal[]
   moderationEvents    CommentModerationEvent[]
 
@@ -167,6 +173,8 @@ model Post {
   feedSource         FeedSource?    @relation(fields: [feedSourceId], references: [id], onDelete: SetNull)
   profileSignals     ProfileSignal[]
   comments           PostComment[]
+  bookmarks          PostBookmark[]
+  replyNotifications CommentReplyNotification[]
   moderationEvents   CommentModerationEvent[]
 
   @@index([publishedAt])
@@ -186,6 +194,7 @@ model PostComment {
   updatedAt   DateTime          @updatedAt
   post        Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
   author      User              @relation("PostCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  replyNotifications CommentReplyNotification[] @relation("CommentReplyNotificationComment")
   parentEdges PostCommentEdge[] @relation("PostCommentEdgesChild")
   childEdges  PostCommentEdge[] @relation("PostCommentEdgesParent")
 
@@ -241,6 +250,38 @@ model ProfileSignal {
 
   @@index([userId, createdAt])
   @@index([sourcePostId])
+}
+
+model PostBookmark {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([userId, postId])
+  @@index([createdAt])
+  @@index([postId, createdAt])
+}
+
+model CommentReplyNotification {
+  id              String     @id @default(cuid())
+  recipientUserId String
+  actorUserId     String
+  postId          String
+  commentId       String
+  isRead          Boolean    @default(false)
+  emailedAt       DateTime?
+  createdAt       DateTime   @default(now())
+  recipientUser   User       @relation("CommentReplyNotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  actorUser       User       @relation("CommentReplyNotificationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  post            Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment         PostComment @relation("CommentReplyNotificationComment", fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientUserId, commentId])
+  @@index([recipientUserId, isRead, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([postId, createdAt])
 }
 
 model JobRun {

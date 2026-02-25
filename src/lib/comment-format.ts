@@ -52,7 +52,7 @@ const markdownOptions: MarkedOptions = {
   async: false,
 };
 
-const commentReferencePattern = (): RegExp => /(^|[^\w])((?:>>|!))(\d{1,4})(?=$|[^\w])/g;
+const commentReferencePattern = (): RegExp => /(^|[^\w])(!)(\d{1,4})(?=$|[^\w])/g;
 
 const transformAnchorTag = (href: string): sanitizeHtml.Tag => {
   if (href.startsWith("#comment-")) {
