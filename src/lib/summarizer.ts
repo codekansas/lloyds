@@ -191,7 +191,6 @@ const parseSummaryJson = (rawText: string, model: string): SummaryResult | null 
 
     return null;
   };
-
   try {
     const jsonPayload = extractJsonObject(rawText);
     if (!jsonPayload) {
