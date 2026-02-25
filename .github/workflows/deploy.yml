@@ -76,6 +76,8 @@ jobs:
           ECS_SERVICE: ${{ env.STAGING_ECS_SERVICE }}
           ECS_CONTAINER_NAME: ${{ env.STAGING_ECS_CONTAINER_NAME }}
           IMAGE_URI: ${{ steps.image.outputs.image_uri }}
+          APP_ENV: staging
+          PRISMA_DB_PUSH_ON_BOOT: "true"
 
   smoke_staging:
     runs-on: ubuntu-latest
@@ -116,6 +118,7 @@ jobs:
               "${{ env.STAGING_BASE_URL }}/api/health?mode=readiness")"
             echo "Health check ${attempt}: $response"
             echo "$response" | grep -q '"status":"ok"'
+            echo "$response" | grep -q '"appEnv":"staging"'
             sleep 30
           done
 
@@ -278,3 +281,5 @@ jobs:
           ECS_SERVICE: ${{ env.PRODUCTION_ECS_SERVICE }}
           ECS_CONTAINER_NAME: ${{ env.PRODUCTION_ECS_CONTAINER_NAME }}
           IMAGE_URI: ${{ env.PRODUCTION_ECR_REPOSITORY_URL }}:${{ needs.deploy_staging.outputs.image_tag }}
+          APP_ENV: production
+          PRISMA_DB_PUSH_ON_BOOT: "true"
