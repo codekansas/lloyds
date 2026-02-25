@@ -112,7 +112,7 @@ variable "openai_api_key" {
 variable "openai_model" {
   description = "OpenAI model for summaries/moderation"
   type        = string
-  default     = "gpt-5.1-mini"
+  default     = "gpt-5-mini"
 }
 
 variable "openai_constitution_grader_model" {

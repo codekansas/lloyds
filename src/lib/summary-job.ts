@@ -5,6 +5,7 @@ import { summarizeArticle } from "@/lib/summarizer";
 
 export type SummaryJobResult = {
   batchSize: number;
+  concurrency: number;
   processed: number;
   completed: number;
   failed: number;
@@ -13,6 +14,8 @@ export type SummaryJobResult = {
 
 const DEFAULT_SUMMARY_BATCH_SIZE = 12;
 const MAX_SUMMARY_BATCH_SIZE = 60;
+const DEFAULT_SUMMARY_CONCURRENCY = 4;
+const MAX_SUMMARY_CONCURRENCY = 12;
 
 const normalizeBatchSize = (requestedBatchSize: number | null | undefined): number => {
   if (typeof requestedBatchSize !== "number" || Number.isNaN(requestedBatchSize)) {
@@ -22,8 +25,52 @@ const normalizeBatchSize = (requestedBatchSize: number | null | undefined): numb
   return Math.max(1, Math.min(MAX_SUMMARY_BATCH_SIZE, Math.trunc(requestedBatchSize)));
 };
 
-export const processPendingSummaries = async (requestedBatchSize?: number): Promise<SummaryJobResult> => {
+const normalizeConcurrency = ({
+  requestedConcurrency,
+  batchSize,
+}: {
+  requestedConcurrency: number | null | undefined;
+  batchSize: number;
+}): number => {
+  if (typeof requestedConcurrency !== "number" || Number.isNaN(requestedConcurrency)) {
+    return Math.min(DEFAULT_SUMMARY_CONCURRENCY, batchSize);
+  }
+
+  return Math.max(1, Math.min(MAX_SUMMARY_CONCURRENCY, batchSize, Math.trunc(requestedConcurrency)));
+};
+
+const processPostSummary = async (post: { id: string; title: string; url: string; excerpt: string | null }) => {
+  const articleText = await fetchArticleText(post.url, post.excerpt);
+  const summary = await summarizeArticle(post.title, post.url, articleText);
+
+  await prisma.post.update({
+    where: {
+      id: post.id,
+    },
+    data: {
+      summaryStatus: "COMPLETE",
+      summaryBullets: summary.bullets,
+      summaryReadSeconds: summary.readSeconds,
+      summaryModel: summary.model,
+      summaryGeneratedAt: new Date(),
+      qualityRating: summary.qualityRating,
+      qualityRationale: summary.qualityRationale,
+      qualityModel: summary.model,
+      qualityScoredAt: new Date(),
+      summaryError: null,
+    },
+  });
+};
+
+export const processPendingSummaries = async (
+  requestedBatchSize?: number,
+  requestedConcurrency?: number,
+): Promise<SummaryJobResult> => {
   const batchSize = normalizeBatchSize(requestedBatchSize);
+  const concurrency = normalizeConcurrency({
+    requestedConcurrency,
+    batchSize,
+  });
   const pendingPosts = await prisma.post.findMany({
     where: {
       summaryStatus: "PENDING",
@@ -34,57 +81,57 @@ export const processPendingSummaries = async (requestedBatchSize?: number): Prom
 
   const result: SummaryJobResult = {
     batchSize,
+    concurrency,
     processed: pendingPosts.length,
     completed: 0,
     failed: 0,
     failures: [],
   };
 
-  for (const post of pendingPosts) {
-    try {
-      const articleText = await fetchArticleText(post.url, post.excerpt);
-      const summary = await summarizeArticle(post.title, post.url, articleText);
+  let cursor = 0;
+  const nextPost = () => {
+    const post = pendingPosts[cursor];
+    cursor += 1;
+    return post;
+  };
 
-      await prisma.post.update({
-        where: {
-          id: post.id,
-        },
-        data: {
-          summaryStatus: "COMPLETE",
-          summaryBullets: summary.bullets,
-          summaryReadSeconds: summary.readSeconds,
-          summaryModel: summary.model,
-          summaryGeneratedAt: new Date(),
-          qualityRating: summary.qualityRating,
-          qualityRationale: summary.qualityRationale,
-          qualityModel: summary.model,
-          qualityScoredAt: new Date(),
-          summaryError: null,
-        },
-      });
+  const workerCount = Math.min(concurrency, pendingPosts.length);
+  const workers = Array.from({ length: workerCount }, () => (async () => {
+    while (true) {
+      const post = nextPost();
+      if (!post) {
+        break;
+      }
 
-      result.completed += 1;
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Summary generation failed.";
-      result.failures.push(`${post.id}: ${message}`);
+      try {
+        await processPostSummary(post);
+        result.completed += 1;
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Summary generation failed.";
+        result.failures.push(`${post.id}: ${message}`);
 
-      await prisma.post.update({
-        where: {
-          id: post.id,
-        },
-        data: {
-          summaryStatus: "FAILED",
-          summaryError: message,
-        },
-      });
+        await prisma.post.update({
+          where: {
+            id: post.id,
+          },
+          data: {
+            summaryStatus: "FAILED",
+            summaryError: message,
+          },
+        });
 
-      result.failed += 1;
+        result.failed += 1;
+      }
     }
-  }
+  })());
+
+  await Promise.all(workers);
 
   logEvent("info", "summary.job.batch.completed", {
     requestedBatchSize: requestedBatchSize ?? null,
+    requestedConcurrency: requestedConcurrency ?? null,
     batchSize,
+    concurrency,
     processed: result.processed,
     completed: result.completed,
     failed: result.failed,

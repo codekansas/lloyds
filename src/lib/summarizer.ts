@@ -10,24 +10,25 @@ import {
 import { openAiClient } from "@/lib/ai";
 import { getConstitutionText } from "@/lib/constitution";
 import { env } from "@/lib/env";
+import { formatErrorSummary, getErrorDiagnostics, logEvent } from "@/lib/observability";
 
 const qualityChecklistSchema = z.object({
-  scopeFit: z.string().min(8).max(180),
-  technicalDepth: z.string().min(8).max(180),
-  novelty: z.string().min(8).max(180),
-  evidenceQuality: z.string().min(8).max(180),
-  reasoningQuality: z.string().min(8).max(180),
-  practicalValue: z.string().min(8).max(180),
-  clarity: z.string().min(8).max(180),
-  penalties: z.string().min(8).max(180),
+  scopeFit: z.string().min(8).max(480),
+  technicalDepth: z.string().min(8).max(480),
+  novelty: z.string().min(8).max(480),
+  evidenceQuality: z.string().min(8).max(480),
+  reasoningQuality: z.string().min(8).max(480),
+  practicalValue: z.string().min(8).max(480),
+  clarity: z.string().min(8).max(480),
+  penalties: z.string().min(8).max(480),
 });
 
 const summarySchema = z.object({
-  bullets: z.array(z.string().min(8).max(220)).min(4).max(8),
+  bullets: z.array(z.string().min(8).max(480)).min(4).max(8),
   readSeconds: z.number().int().min(10).max(30),
   qualityRating: z.enum(articleQualityRatingValues),
   qualityChecklist: qualityChecklistSchema.optional(),
-  qualityRationale: z.string().min(24).max(1200),
+  qualityRationale: z.string().min(24).max(4000),
 });
 
 export type SummaryResult = {
@@ -36,6 +37,14 @@ export type SummaryResult = {
   qualityRating: ArticleQualityRating;
   qualityRationale: string;
   model: string;
+};
+
+type FallbackSummaryReason = "openai-unavailable" | "openai-error" | "parse-failed";
+
+type ParseSummaryResult = {
+  summary: SummaryResult | null;
+  parseError?: string;
+  jsonPayloadPreview?: string;
 };
 
 const cleanSentence = (value: string): string => {
@@ -135,7 +144,17 @@ const buildQualityRationale = ({
   return trimToMax(`${normalizedRationale}\n\nChecklist signals: ${checklistSummary}`, 1200);
 };
 
-const fallbackSummarize = (title: string, articleUrl: string, articleText: string): SummaryResult => {
+const fallbackSummarize = ({
+  title,
+  articleUrl,
+  articleText,
+  reason,
+}: {
+  title: string;
+  articleUrl: string;
+  articleText: string;
+  reason: FallbackSummaryReason;
+}): SummaryResult => {
   const normalizedArticleText = normalizeArticleText(articleText);
   const sentences = normalizedArticleText
     .split(/(?<=[.!?])\s+/)
@@ -168,12 +187,12 @@ const fallbackSummarize = (title: string, articleUrl: string, articleText: strin
     bullets,
     readSeconds: Math.max(10, Math.min(30, Math.round((bullets.join(" ").split(" ").length / 220) * 60))),
     qualityRating,
-    qualityRationale: `Checklist review unavailable in fallback mode. Provisional calibration assigned ${qualityLabelFromRating(qualityRating)} until constitutional scoring succeeds.`,
-    model: "fallback-extractive-v1",
+    qualityRationale: `Checklist review unavailable in fallback mode (${reason}). Provisional calibration assigned ${qualityLabelFromRating(qualityRating)} until constitutional scoring succeeds.`,
+    model: `fallback-extractive-v1:${reason}`,
   };
 };
 
-const parseSummaryJson = (rawText: string, model: string): SummaryResult | null => {
+const parseSummaryJson = (rawText: string, model: string): ParseSummaryResult => {
   const extractJsonObject = (value: string): string | null => {
     const fencedMatch = value.match(/```(?:json)?\s*([\s\S]*?)```/i);
     const candidates = [value, fencedMatch?.[1] ?? ""].filter((candidate) => candidate.trim().length > 0);
@@ -194,7 +213,10 @@ const parseSummaryJson = (rawText: string, model: string): SummaryResult | null 
   try {
     const jsonPayload = extractJsonObject(rawText);
     if (!jsonPayload) {
-      return null;
+      return {
+        summary: null,
+        parseError: "No JSON object found in model response.",
+      };
     }
 
     const parsed = JSON.parse(jsonPayload);
@@ -202,21 +224,31 @@ const parseSummaryJson = (rawText: string, model: string): SummaryResult | null 
     const normalizedBullets = normalizeSummaryBullets(validated.bullets);
 
     if (normalizedBullets.length < 4) {
-      return null;
+      return {
+        summary: null,
+        parseError: "Parsed summary had fewer than 4 usable bullets after normalization.",
+        jsonPayloadPreview: trimToMax(jsonPayload, 420),
+      };
     }
 
     return {
-      bullets: normalizedBullets,
-      readSeconds: validated.readSeconds,
-      qualityRating: validated.qualityRating,
-      qualityRationale: buildQualityRationale({
-        qualityChecklist: validated.qualityChecklist,
-        qualityRationale: validated.qualityRationale,
-      }),
-      model,
+      summary: {
+        bullets: normalizedBullets,
+        readSeconds: validated.readSeconds,
+        qualityRating: validated.qualityRating,
+        qualityRationale: buildQualityRationale({
+          qualityChecklist: validated.qualityChecklist,
+          qualityRationale: validated.qualityRationale,
+        }),
+        model,
+      },
     };
-  } catch {
-    return null;
+  } catch (error: unknown) {
+    return {
+      summary: null,
+      parseError: formatErrorSummary(error, 260),
+      jsonPayloadPreview: trimToMax(rawText, 420),
+    };
   }
 };
 
@@ -225,12 +257,22 @@ export const summarizeArticle = async (
   articleUrl: string,
   articleText: string,
 ): Promise<SummaryResult> => {
+  const gradingModel = env.constitutionGraderModel;
+
   if (!openAiClient) {
-    return fallbackSummarize(title, articleUrl, articleText);
+    logEvent("warn", "summary.fallback.used", {
+      reason: "openai-unavailable",
+      gradingModel,
+    });
+    return fallbackSummarize({
+      title,
+      articleUrl,
+      articleText,
+      reason: "openai-unavailable",
+    });
   }
 
   const constitution = await getConstitutionText();
-  const gradingModel = env.constitutionGraderModel;
   const normalizedArticleText = normalizeArticleText(articleText);
   const prompt = [
     "You create rapid pre-read summaries for thoughtful readers.",
@@ -275,12 +317,35 @@ export const summarizeArticle = async (
     });
 
     const parsed = parseSummaryJson(response.output_text, gradingModel);
-    if (parsed) {
-      return parsed;
+    if (parsed.summary) {
+      return parsed.summary;
     }
-  } catch {
-    // Fall through to deterministic summary generation.
+
+    logEvent("warn", "summary.fallback.used", {
+      reason: "parse-failed",
+      gradingModel,
+      responseId: response.id,
+      parseError: parsed.parseError ?? null,
+      outputPreview: parsed.jsonPayloadPreview ?? null,
+    });
+  } catch (error: unknown) {
+    logEvent("error", "summary.openai.request_failed", {
+      gradingModel,
+      error: getErrorDiagnostics(error),
+    });
+
+    return fallbackSummarize({
+      title,
+      articleUrl,
+      articleText,
+      reason: "openai-error",
+    });
   }
 
-  return fallbackSummarize(title, articleUrl, articleText);
+  return fallbackSummarize({
+    title,
+    articleUrl,
+    articleText,
+    reason: "parse-failed",
+  });
 };
