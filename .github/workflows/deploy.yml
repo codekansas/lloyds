@@ -113,11 +113,46 @@ jobs:
               --show-error \
               --connect-timeout 5 \
               --max-time 10 \
-              "${{ env.STAGING_BASE_URL }}/api/health")"
+              "${{ env.STAGING_BASE_URL }}/api/health?mode=readiness")"
             echo "Health check ${attempt}: $response"
             echo "$response" | grep -q '"status":"ok"'
             sleep 30
           done
+
+      - name: Verify staging status dashboard is operational
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --connect-timeout 5 \
+            --max-time 10 \
+            "${{ env.STAGING_BASE_URL }}/api/status" \
+            > /tmp/staging-status.json
+
+          cat /tmp/staging-status.json
+
+          node <<'NODE'
+          const fs = require("node:fs");
+          const raw = fs.readFileSync("/tmp/staging-status.json", "utf8");
+          const payload = JSON.parse(raw);
+
+          if (payload.overallState === "outage") {
+            console.error(`Staging overallState is outage.`);
+            process.exit(1);
+          }
+
+          const outageServices = (payload.services ?? []).filter((service) => service.state === "outage");
+          if (outageServices.length > 0) {
+            console.error("Outage services detected:");
+            for (const service of outageServices) {
+              console.error(`- ${service.id}: ${service.state} :: ${service.summary}`);
+            }
+            process.exit(1);
+          }
+
+          console.log("Staging status endpoint reports no outages.");
+          NODE
 
   acceptance_staging:
     runs-on: ubuntu-latest

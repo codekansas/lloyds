@@ -8,6 +8,24 @@ test("@smoke health endpoint returns ok", async ({ request }) => {
   expect(payload.status).toBe("ok");
 });
 
+test("@smoke readiness endpoint reports healthy dependencies", async ({ request }) => {
+  const response = await request.get("/api/health?mode=readiness");
+  expect(response.ok()).toBeTruthy();
+
+  const payload = (await response.json()) as {
+    status?: string;
+    mode?: string;
+    blockingServices?: unknown[];
+  };
+  expect(payload.status).toBe("ok");
+  if (payload.mode !== undefined) {
+    expect(payload.mode).toBe("readiness");
+  }
+  if (payload.blockingServices !== undefined) {
+    expect(Array.isArray(payload.blockingServices)).toBeTruthy();
+  }
+});
+
 test("@smoke status endpoint returns service snapshot", async ({ request }) => {
   const response = await request.get("/api/status");
   expect(response.ok()).toBeTruthy();
