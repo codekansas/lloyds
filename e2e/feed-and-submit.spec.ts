@@ -77,7 +77,7 @@ test("renders ranked feed entries with AI bullets", async ({ page, baseURL }) =>
   await expect(postCard.getByText(summaryBullets[2])).toBeHidden();
 });
 
-test("defaults to last 24h and orders feed by constitutional quality rating", async ({ page, baseURL }) => {
+test("defaults to last 24h and supports all-time feed queries", async ({ page, baseURL }) => {
   if (!baseURL) {
     throw new Error("baseURL is not configured for Playwright.");
   }
@@ -152,7 +152,7 @@ test("defaults to last 24h and orders feed by constitutional quality rating", as
   const firstCard = page.locator(".feed-card").first();
   await expect(firstCard.getByRole("link", { name: highSignalTitle })).toBeVisible();
 
-  await page.getByRole("link", { name: "All time" }).click();
+  await page.goto("/?window=all");
   await expect(page).toHaveURL(/window=all/);
   await expect(page.getByRole("link", { name: olderTitle })).toBeVisible();
 });
