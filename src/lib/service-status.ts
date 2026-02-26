@@ -73,9 +73,6 @@ const FEED_FAILURE_WARN_RATIO = 0.15;
 const FEED_FAILURE_OUTAGE_RATIO = 0.4;
 const DATABASE_WARN_QUERY_MS = 1_500;
 const DATABASE_OUTAGE_QUERY_MS = 8_000;
-const OPENAI_RECENT_SAMPLE_MIN = 8;
-const OPENAI_FALLBACK_RATIO_WARN = 0.45;
-const OPENAI_FALLBACK_RATIO_HIGH = 0.85;
 
 export const serviceStateLabels: Record<ServiceState, string> = {
   operational: "Operational",
@@ -404,11 +401,9 @@ const buildDatabaseService = ({ nowIso, queryDurationMs }: { nowIso: string; que
 const buildOpenAiService = ({
   nowIso,
   recentCompletedSummaries,
-  recentFallbackSummaries,
 }: {
   nowIso: string;
   recentCompletedSummaries: number | null;
-  recentFallbackSummaries: number | null;
 }): ServiceStatus => {
   const checks: ServiceCheck[] = [];
 
@@ -416,25 +411,8 @@ const buildOpenAiService = ({
     checks.push({
       id: "openai-missing-key",
       state: "degraded",
-      message: "OpenAI API credentials are missing; summaries are using fallback extraction.",
+      message: "OpenAI API credentials are missing; constitutional scoring is unavailable.",
     });
-  }
-
-  if (recentCompletedSummaries !== null && recentFallbackSummaries !== null && recentCompletedSummaries >= OPENAI_RECENT_SAMPLE_MIN) {
-    const fallbackRatio = recentFallbackSummaries / Math.max(1, recentCompletedSummaries);
-    if (fallbackRatio >= OPENAI_FALLBACK_RATIO_HIGH) {
-      checks.push({
-        id: "openai-fallback-high",
-        state: "degraded",
-        message: `Most recent summaries are fallback-generated (${formatPercent(fallbackRatio)}).`,
-      });
-    } else if (fallbackRatio >= OPENAI_FALLBACK_RATIO_WARN) {
-      checks.push({
-        id: "openai-fallback-elevated",
-        state: "degraded",
-        message: `Fallback summary usage is elevated (${formatPercent(fallbackRatio)} in the last 24h).`,
-      });
-    }
   }
 
   const healthySummary = "OpenAI summarization is configured and usage patterns look healthy.";
@@ -444,7 +422,7 @@ const buildOpenAiService = ({
     `Moderation/default model: ${env.openAiModel}`,
     `Constitution grader model: ${env.constitutionGraderModel}`,
     recentCompletedSummaries === null ? "Recent summary usage: unavailable" : `Recent completed summaries (24h): ${recentCompletedSummaries}`,
-    recentFallbackSummaries === null ? "Recent fallback summaries: unavailable" : `Recent fallback summaries (24h): ${recentFallbackSummaries}`,
+    "Fallback quality scoring: disabled",
     ...checks.map(formatCheckLine),
   ];
 
@@ -562,6 +540,14 @@ const buildSummaryService = ({
     });
   }
 
+  if (failedCount > 0) {
+    checks.push({
+      id: "summary-retryable-failures",
+      state: recentSummariesCompletedLastHour === 0 ? "outage" : "degraded",
+      message: `${failedCount} pending summaries failed their latest constitutional scoring attempt and are queued for retry.`,
+    });
+  }
+
   if (
     queueDrainHours !== null &&
     queueDrainHours >= SUMMARY_BACKLOG_SLOW_DRAIN_WARN_HOURS &&
@@ -591,7 +577,7 @@ const buildSummaryService = ({
 
   const details = [
     `Pending summaries: ${pendingCount}`,
-    `Failed summaries: ${failedCount}`,
+    `Retryable scoring failures: ${failedCount}`,
     `Pending older than ${SUMMARY_PENDING_WARN_AGE_MINUTES}m: ${pendingOlderWarnCount}`,
     `Pending older than ${SUMMARY_PENDING_OUTAGE_AGE_MINUTES}m: ${pendingOlderOutageCount}`,
     `New posts in last hour: ${recentPostsCreatedLastHour}`,
@@ -763,7 +749,6 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
       staleFeedSourceCount,
       unstableFeedSourceCount,
       recentCompletedSummaries24h,
-      recentFallbackSummaries24h,
     ] = await Promise.all([
       prisma.post.count({
         where: {
@@ -772,7 +757,10 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
       }),
       prisma.post.count({
         where: {
-          summaryStatus: "FAILED",
+          summaryStatus: "PENDING",
+          summaryError: {
+            not: null,
+          },
         },
       }),
       prisma.post.findFirst({
@@ -908,17 +896,6 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
           },
         },
       }),
-      prisma.post.count({
-        where: {
-          summaryStatus: "COMPLETE",
-          summaryGeneratedAt: {
-            gte: twentyFourHoursAgo,
-          },
-          summaryModel: {
-            startsWith: "fallback",
-          },
-        },
-      }),
     ]);
 
     const staleFeedSources: RssStaleSource[] = staleFeedSourcesRaw
@@ -969,7 +946,6 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
     const openAiService = buildOpenAiService({
       nowIso,
       recentCompletedSummaries: recentCompletedSummaries24h,
-      recentFallbackSummaries: recentFallbackSummaries24h,
     });
 
     const services: ServiceStatus[] = [databaseService, rssService, summaryService, openAiService];
@@ -1051,7 +1027,6 @@ export const getServiceStatusSnapshot = async (): Promise<ServiceStatusSnapshot>
     const openAiService = buildOpenAiService({
       nowIso,
       recentCompletedSummaries: null,
-      recentFallbackSummaries: null,
     });
 
     const services: ServiceStatus[] = [databaseService, rssService, summaryService, openAiService];

@@ -1,7 +1,9 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 import { fetchArticleText } from "@/lib/article-text";
-import { logEvent } from "@/lib/observability";
-import { summarizeArticle } from "@/lib/summarizer";
+import { formatErrorSummary, getErrorDiagnostics, logEvent } from "@/lib/observability";
+import { summarizeArticle, SummaryGradingError } from "@/lib/summarizer";
 
 export type SummaryJobResult = {
   batchSize: number;
@@ -62,10 +64,67 @@ const processPostSummary = async (post: { id: string; title: string; url: string
   });
 };
 
+const buildSummaryErrorContext = (error: unknown) => {
+  if (error instanceof SummaryGradingError) {
+    return {
+      errorSummary: formatErrorSummary(error, 420),
+      reason: error.reason,
+      gradingModel: error.gradingModel,
+      responseId: error.responseId,
+      parseError: error.parseError,
+      outputPreview: error.outputPreview,
+      diagnostics: error.diagnostics ?? getErrorDiagnostics(error),
+    };
+  }
+
+  return {
+    errorSummary: formatErrorSummary(error, 420),
+    reason: "unknown",
+    gradingModel: null,
+    responseId: null,
+    parseError: null,
+    outputPreview: null,
+    diagnostics: getErrorDiagnostics(error),
+  };
+};
+
+const requeueLegacyFallbackScores = async (): Promise<number> => {
+  const result = await prisma.post.updateMany({
+    where: {
+      summaryStatus: "COMPLETE",
+      summaryModel: {
+        startsWith: "fallback-extractive-v1",
+      },
+    },
+    data: {
+      summaryStatus: "PENDING",
+      summaryBullets: Prisma.DbNull,
+      summaryReadSeconds: null,
+      summaryModel: null,
+      summaryGeneratedAt: null,
+      qualityRating: null,
+      qualityRationale: null,
+      qualityModel: null,
+      qualityScoredAt: null,
+      summaryError: "Requeued legacy fallback score for constitutional rescoring.",
+    },
+  });
+
+  if (result.count > 0) {
+    logEvent("info", "summary.job.legacy_fallback.requeued", {
+      requeued: result.count,
+    });
+  }
+
+  return result.count;
+};
+
 export const processPendingSummaries = async (
   requestedBatchSize?: number,
   requestedConcurrency?: number,
 ): Promise<SummaryJobResult> => {
+  await requeueLegacyFallbackScores();
+
   const batchSize = normalizeBatchSize(requestedBatchSize);
   const concurrency = normalizeConcurrency({
     requestedConcurrency,
@@ -76,7 +135,7 @@ export const processPendingSummaries = async (
       summaryStatus: "PENDING",
     },
     take: batchSize,
-    orderBy: [{ createdAt: "asc" }],
+    orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
   });
 
   const result: SummaryJobResult = {
@@ -107,16 +166,43 @@ export const processPendingSummaries = async (
         await processPostSummary(post);
         result.completed += 1;
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "Summary generation failed.";
+        const errorContext = buildSummaryErrorContext(error);
+        const message = `${errorContext.errorSummary}${errorContext.gradingModel ? ` [model=${errorContext.gradingModel}]` : ""}`;
         result.failures.push(`${post.id}: ${message}`);
+
+        logEvent("warn", "summary.job.post.retryable_failure", {
+          postId: post.id,
+          reason: errorContext.reason,
+          gradingModel: errorContext.gradingModel,
+          responseId: errorContext.responseId,
+          parseError: errorContext.parseError,
+          outputPreview: errorContext.outputPreview,
+          diagnostics: errorContext.diagnostics,
+        });
 
         await prisma.post.update({
           where: {
             id: post.id,
           },
           data: {
-            summaryStatus: "FAILED",
-            summaryError: message,
+            summaryStatus: "PENDING",
+            summaryBullets: Prisma.DbNull,
+            summaryReadSeconds: null,
+            summaryModel: null,
+            summaryGeneratedAt: null,
+            qualityRating: null,
+            qualityRationale: null,
+            qualityModel: null,
+            qualityScoredAt: null,
+            summaryError: JSON.stringify({
+              attemptedAt: new Date().toISOString(),
+              reason: errorContext.reason,
+              gradingModel: errorContext.gradingModel,
+              responseId: errorContext.responseId,
+              parseError: errorContext.parseError,
+              outputPreview: errorContext.outputPreview,
+              message: errorContext.errorSummary,
+            }),
           },
         });
 

@@ -6,16 +6,19 @@ type QualityRatingExplainerProps = {
   qualityLabel: string;
   qualityClassName: string;
   qualityExplanation: string;
+  qualityModel: string | null;
 };
 
 export const QualityRatingExplainer = ({
   qualityLabel,
   qualityClassName,
   qualityExplanation,
+  qualityModel,
 }: QualityRatingExplainerProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dialogId = useId();
   const dialogTitleId = useId();
+  const qualityModelLabel = qualityModel?.trim() ? qualityModel : "Unavailable";
 
   useEffect(() => {
     if (!isOpen) {
@@ -69,6 +72,9 @@ export const QualityRatingExplainer = ({
                 Close
               </button>
             </div>
+            <p className="quality-modal-meta">
+              <strong>Quality model:</strong> {qualityModelLabel}
+            </p>
             <p className="quality-modal-explanation">{qualityExplanation}</p>
           </div>
         </div>

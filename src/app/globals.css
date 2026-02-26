@@ -540,6 +540,12 @@ button {
   flex-shrink: 0;
 }
 
+.quality-modal-meta {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--ink-muted);
+}
+
 .quality-modal-explanation {
   margin: 0;
   font-size: 0.98rem;

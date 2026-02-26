@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { LocalTimestamp, LocalTimezoneLabel } from "@/components/local-timestamp";
 import { formatMinutesAsAge, getServiceStatusSnapshot, serviceStateLabels } from "@/lib/service-status";
 
 export const metadata: Metadata = {
@@ -8,15 +9,6 @@ export const metadata: Metadata = {
 };
 
 export const dynamic = "force-dynamic";
-
-const timestampFormatter = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-const formatTimestamp = (iso: string): string => {
-  return timestampFormatter.format(new Date(iso));
-};
 
 export default async function StatusPage() {
   const snapshot = await getServiceStatusSnapshot();
@@ -39,11 +31,16 @@ export default async function StatusPage() {
 
         <div className="inline-cluster">
           <span className="chip">Pending summaries: {queue.pendingCount ?? "unknown"}</span>
-          <span className="chip">Failed summaries: {queue.failedCount ?? "unknown"}</span>
+          <span className="chip">Retryable failures: {queue.failedCount ?? "unknown"}</span>
+          <span className="chip">
+            Timezone: <LocalTimezoneLabel />
+          </span>
           <span className="chip">
             Oldest pending age: {queue.oldestPendingAgeMinutes === null ? "none" : formatMinutesAsAge(queue.oldestPendingAgeMinutes)}
           </span>
-          <span className="chip">Last snapshot: {formatTimestamp(snapshot.generatedAt)}</span>
+          <span className="chip">
+            Last snapshot: <LocalTimestamp iso={snapshot.generatedAt} />
+          </span>
         </div>
       </article>
 
@@ -75,9 +72,13 @@ export default async function StatusPage() {
                         {source.url}
                       </a>
                       <span>
-                        {source.lastFetchedAt
-                          ? `Last fetched ${formatMinutesAsAge(source.staleAgeMinutes)} ago (${formatTimestamp(source.lastFetchedAt)}).`
-                          : "Never fetched successfully."}
+                        {source.lastFetchedAt ? (
+                          <>
+                            Last fetched {formatMinutesAsAge(source.staleAgeMinutes)} ago (<LocalTimestamp iso={source.lastFetchedAt} />).
+                          </>
+                        ) : (
+                          "Never fetched successfully."
+                        )}
                         {source.failureCount > 0 ? ` Failure count: ${source.failureCount}.` : ""}
                       </span>
                     </li>
@@ -85,7 +86,9 @@ export default async function StatusPage() {
                 </ul>
               </details>
             ) : null}
-            <p className="text-label status-service-updated">Updated: {formatTimestamp(service.updatedAt)}</p>
+            <p className="text-label status-service-updated">
+              Updated: <LocalTimestamp iso={service.updatedAt} />
+            </p>
           </article>
         ))}
       </div>

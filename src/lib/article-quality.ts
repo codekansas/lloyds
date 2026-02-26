@@ -54,27 +54,3 @@ export const qualityLabelFromRating = (rating: ArticleQualityRating | null | und
 
   return articleQualityRatingLabels[rating];
 };
-
-export const assignQualityRatingFromHash = (seed: string): ArticleQualityRating => {
-  let hash = 17;
-  for (const character of seed) {
-    hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
-  }
-
-  const percentile = hash % 100;
-
-  if (percentile < 20) {
-    return "COMMON_RUMOUR";
-  }
-  if (percentile < 50) {
-    return "MERCHANTS_WORD";
-  }
-  if (percentile < 80) {
-    return "CAPTAINS_ACCOUNT";
-  }
-  if (percentile < 95) {
-    return "UNDERWRITERS_CONFIDENCE";
-  }
-
-  return "LLOYDS_ASSURANCE";
-};
