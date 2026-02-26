@@ -137,6 +137,7 @@ type FeedPostCardProps = {
   excerpt: string | null;
   qualityRating: ArticleQualityRating | null;
   qualityRationale: string | null;
+  qualityModel: string | null;
   commentsCount: number;
   canBookmark: boolean;
   isBookmarked: boolean;
@@ -156,6 +157,7 @@ export const FeedPostCard = ({
   excerpt,
   qualityRating,
   qualityRationale,
+  qualityModel,
   commentsCount,
   canBookmark,
   isBookmarked,
@@ -171,11 +173,16 @@ export const FeedPostCard = ({
     summaryBullets,
     excerpt,
   });
-  const qualityLabel = qualityLabelFromRating(qualityRating);
-  const qualityClassName = qualityRating
-    ? `chip quality-pill quality-pill-${qualityRating.toLowerCase()}`
+  const hasCanonicalQualityScore = Boolean(qualityModel && !qualityModel.startsWith("fallback-extractive-v1"));
+  const effectiveQualityRating = hasCanonicalQualityScore ? qualityRating : null;
+  const effectiveQualityModel = hasCanonicalQualityScore ? qualityModel : null;
+  const qualityLabel = qualityLabelFromRating(effectiveQualityRating);
+  const qualityClassName = effectiveQualityRating
+    ? `chip quality-pill quality-pill-${effectiveQualityRating.toLowerCase()}`
     : "chip quality-pill";
-  const qualityExplanation = qualityRationale?.trim() ?? "Quality reasoning summary is not available yet for this article.";
+  const qualityExplanation = hasCanonicalQualityScore && qualityRationale?.trim()
+    ? qualityRationale.trim()
+    : "Quality reasoning summary is not available yet for this article.";
 
   return (
     <article className="surface feed-card" data-testid={`feed-post-${postId}`}>
@@ -185,6 +192,7 @@ export const FeedPostCard = ({
             qualityLabel={qualityLabel}
             qualityClassName={qualityClassName}
             qualityExplanation={qualityExplanation}
+            qualityModel={effectiveQualityModel}
           />
           <span className="chip">{sourceLabel}</span>
           <span className="chip">{ageLabel}</span>

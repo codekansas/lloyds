@@ -4,8 +4,6 @@ import type { ArticleQualityRating } from "@prisma/client";
 import {
   articleQualityScalePrompt,
   articleQualityRatingValues,
-  assignQualityRatingFromHash,
-  qualityLabelFromRating,
 } from "@/lib/article-quality";
 import { openAiClient } from "@/lib/ai";
 import { getConstitutionText } from "@/lib/constitution";
@@ -39,7 +37,37 @@ export type SummaryResult = {
   model: string;
 };
 
-type FallbackSummaryReason = "openai-unavailable" | "openai-error" | "parse-failed";
+export type SummaryGradingFailureReason = "openai-unavailable" | "openai-error" | "parse-failed";
+
+type SummaryGradingErrorContext = {
+  reason: SummaryGradingFailureReason;
+  gradingModel: string;
+  message: string;
+  responseId?: string;
+  parseError?: string;
+  outputPreview?: string;
+  diagnostics?: ReturnType<typeof getErrorDiagnostics>;
+};
+
+export class SummaryGradingError extends Error {
+  readonly reason: SummaryGradingFailureReason;
+  readonly gradingModel: string;
+  readonly responseId: string | null;
+  readonly parseError: string | null;
+  readonly outputPreview: string | null;
+  readonly diagnostics: ReturnType<typeof getErrorDiagnostics> | null;
+
+  constructor(context: SummaryGradingErrorContext) {
+    super(context.message);
+    this.name = "SummaryGradingError";
+    this.reason = context.reason;
+    this.gradingModel = context.gradingModel;
+    this.responseId = context.responseId ?? null;
+    this.parseError = context.parseError ?? null;
+    this.outputPreview = context.outputPreview ?? null;
+    this.diagnostics = context.diagnostics ?? null;
+  }
+}
 
 type ParseSummaryResult = {
   summary: SummaryResult | null;
@@ -117,6 +145,7 @@ const summarizeChecklistForRationale = (checklist: z.infer<typeof qualityCheckli
     `Evidence: ${cleanSentence(checklist.evidenceQuality)}`,
     `Reasoning: ${cleanSentence(checklist.reasoningQuality)}`,
     `Practical value: ${cleanSentence(checklist.practicalValue)}`,
+    `Clarity/accessibility: ${cleanSentence(checklist.clarity)}`,
   ];
 
   const normalizedPenalty = cleanSentence(checklist.penalties);
@@ -144,52 +173,15 @@ const buildQualityRationale = ({
   return trimToMax(`${normalizedRationale}\n\nChecklist signals: ${checklistSummary}`, 1200);
 };
 
-const fallbackSummarize = ({
-  title,
-  articleUrl,
-  articleText,
-  reason,
-}: {
-  title: string;
-  articleUrl: string;
-  articleText: string;
-  reason: FallbackSummaryReason;
-}): SummaryResult => {
-  const normalizedArticleText = normalizeArticleText(articleText);
-  const sentences = normalizedArticleText
-    .split(/(?<=[.!?])\s+/)
-    .map((sentence) => sanitizeSummaryBullet(sentence))
-    .filter((sentence) => {
-      if (sentence.length < 48 || sentence.length > 220) {
-        return false;
-      }
-
-      return !/(cookie|privacy policy|subscribe|sign in|table of contents|skip to content)/i.test(sentence);
-    })
-    .slice(0, 6);
-
-  const fallbackBullets = [
-    `Core thesis: ${title}.`,
-    ...sentences.slice(0, 5),
-  ].slice(0, 6);
-  const normalizedBullets = normalizeSummaryBullets(fallbackBullets);
-  const bullets = normalizedBullets.length >= 4
-    ? normalizedBullets
-    : [
-        `Core thesis: ${sanitizeSummaryBullet(title)}.`,
-        "The retrieved text suggests technical content, but source extraction quality was limited.",
-        "Method and evidence details should be verified directly in the original article.",
-        "Use this brief as provisional context until a full model summary succeeds.",
-      ];
-  const qualityRating = assignQualityRatingFromHash(articleUrl);
-
-  return {
-    bullets,
-    readSeconds: Math.max(10, Math.min(30, Math.round((bullets.join(" ").split(" ").length / 220) * 60))),
-    qualityRating,
-    qualityRationale: `Checklist review unavailable in fallback mode (${reason}). Provisional calibration assigned ${qualityLabelFromRating(qualityRating)} until constitutional scoring succeeds.`,
-    model: `fallback-extractive-v1:${reason}`,
-  };
+const logSummaryGradingFailure = (error: SummaryGradingError): void => {
+  logEvent("error", "summary.grading.failed", {
+    reason: error.reason,
+    gradingModel: error.gradingModel,
+    responseId: error.responseId,
+    parseError: error.parseError,
+    outputPreview: error.outputPreview,
+    diagnostics: error.diagnostics,
+  });
 };
 
 const parseSummaryJson = (rawText: string, model: string): ParseSummaryResult => {
@@ -260,16 +252,13 @@ export const summarizeArticle = async (
   const gradingModel = env.constitutionGraderModel;
 
   if (!openAiClient) {
-    logEvent("warn", "summary.fallback.used", {
+    const gradingError = new SummaryGradingError({
       reason: "openai-unavailable",
       gradingModel,
+      message: "OpenAI client is unavailable; constitutional quality scoring cannot run.",
     });
-    return fallbackSummarize({
-      title,
-      articleUrl,
-      articleText,
-      reason: "openai-unavailable",
-    });
+    logSummaryGradingFailure(gradingError);
+    throw gradingError;
   }
 
   const constitution = await getConstitutionText();
@@ -291,6 +280,9 @@ export const summarizeArticle = async (
     "If politics/emotion-first framing dominates and technical depth is weak, score Common Rumour.",
     "Do not score above Merchant's Word for politics/emotion-heavy content unless technical analysis is clearly dominant.",
     "When this penalty applies, explicitly mention it in qualityChecklist.penalties and qualityRationale.",
+    "Favor articles that make technically hard ideas understandable to engineers and scientists from adjacent domains.",
+    "In qualityChecklist.clarity, explicitly judge outsider comprehensibility: jargon explained, context provided, and core contribution understandable without deep niche background.",
+    "If outsider comprehensibility is weak and explanatory scaffolding is missing, apply a meaningful penalty and avoid top-tier ratings.",
     "qualityRationale must be 5-6 complete sentences (roughly 90-170 words) that explain how the checklist reasoning led to the final rating.",
     "No markdown, no numbering, no extra keys.",
     "--- Constitution Reference ---",
@@ -321,31 +313,33 @@ export const summarizeArticle = async (
       return parsed.summary;
     }
 
-    logEvent("warn", "summary.fallback.used", {
+    const gradingError = new SummaryGradingError({
       reason: "parse-failed",
       gradingModel,
+      message: "Model response could not be parsed into a constitutional quality score.",
       responseId: response.id,
-      parseError: parsed.parseError ?? null,
-      outputPreview: parsed.jsonPayloadPreview ?? null,
+      parseError: parsed.parseError,
+      outputPreview: parsed.jsonPayloadPreview,
     });
+    logSummaryGradingFailure(gradingError);
+    throw gradingError;
   } catch (error: unknown) {
+    if (error instanceof SummaryGradingError) {
+      throw error;
+    }
+
+    const diagnostics = getErrorDiagnostics(error);
+    const gradingError = new SummaryGradingError({
+      reason: "openai-error",
+      gradingModel,
+      message: `OpenAI constitutional scoring request failed: ${diagnostics.message}`,
+      diagnostics,
+    });
     logEvent("error", "summary.openai.request_failed", {
       gradingModel,
-      error: getErrorDiagnostics(error),
+      error: diagnostics,
     });
-
-    return fallbackSummarize({
-      title,
-      articleUrl,
-      articleText,
-      reason: "openai-error",
-    });
+    logSummaryGradingFailure(gradingError);
+    throw gradingError;
   }
-
-  return fallbackSummarize({
-    title,
-    articleUrl,
-    articleText,
-    reason: "parse-failed",
-  });
 };

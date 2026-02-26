@@ -201,6 +201,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   excerpt={post.excerpt}
                   qualityRating={post.qualityRating}
                   qualityRationale={post.qualityRationale}
+                  qualityModel={post.qualityModel}
                   commentsCount={post._count.comments}
                   canBookmark={Boolean(session?.user && hasAcceptedManifesto)}
                   isBookmarked={bookmarkedPostIds.has(post.id)}

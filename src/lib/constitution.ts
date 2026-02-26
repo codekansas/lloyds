@@ -22,9 +22,9 @@ let cachedConstitution: CachedConstitution | null = null;
 
 const fallbackConstitutionText = `# Lloyd's List Constitution
 
-Version 2026-02-23
+Version 2026-02-26
 
-This constitution defines how article quality is judged in Lloyd's List. Lloyd's List is a discovery engine for scientific, programming, engineering, and startup ideas. It rewards technical depth, novelty, and practical insight while discouraging hype, tribal framing, and low-signal discourse.
+This constitution defines how article quality is judged in Lloyd's List. Lloyd's List is a discovery engine for scientific, programming, engineering, and startup ideas. It rewards technical depth, novelty, practical insight, and cross-domain accessibility while discouraging hype, tribal framing, and low-signal discourse.
 
 ## Editorial Scope
 
@@ -52,9 +52,10 @@ Strongly deprioritize content where politics, culture war, ideology, or emotiona
 2. Evidence over assertion.
 3. Original insight over recycled consensus.
 4. Practical transfer over abstract posturing.
-5. Clarity over obscurity.
+5. Clarity and accessibility over obscurity.
 6. Honest uncertainty over false certainty.
 7. Signal density over hot takes.
+8. Bridge-building communication over specialist gatekeeping.
 
 ## Rating Criteria
 
@@ -65,6 +66,7 @@ Evaluate every article on these dimensions:
 - Evidence quality: cited data, experiments, benchmarks, primary sources, and reproducibility.
 - Reasoning quality: explicit assumptions, causal structure, alternatives considered, and counterexample handling.
 - Practical value: concrete lessons a serious builder/researcher can apply to decisions or implementation.
+- Accessibility and idea transfer: whether a strong engineer/scientist from another domain can understand the core idea without deep niche background.
 - Epistemic conduct: calibrated confidence, uncertainty disclosure, and correction of limitations.
 - Writing quality: coherence, precision, and ratio of signal to filler.
 
@@ -81,6 +83,7 @@ Downgrade heavily for:
 - Repackaged consensus with little new understanding.
 - Excessive self-promotion, affiliate spam, or engagement farming.
 - AI slop patterns: generic platitudes, shallow summaries, and no concrete argument.
+- Specialist-gated exposition: dense jargon or missing context that leaves core claims opaque to cross-domain readers.
 
 ## Bonuses
 
@@ -90,6 +93,7 @@ Upgrade when present:
 - Code-level, architectural, mathematical, or scientific detail that increases transferability.
 - Clear treatment of tradeoffs, failure modes, and operational constraints.
 - Durable insights likely to remain useful beyond a short news cycle.
+- Excellent translation of advanced ideas for technically literate outsiders without diluting rigor.
 
 ## Quality Scale
 
@@ -112,13 +116,13 @@ Pick exactly one rating:
 
 4. Underwriter's Confidence
    - Strong sourcing, disciplined reasoning, and dense technical signal.
-   - Materially improves expert mental models or implementation decisions.
+   - Materially improves expert mental models or implementation decisions while remaining accessible to cross-domain technical readers.
    - Suitable for high-stakes technical or strategic use.
 
 5. The Lloyd's Assurance
    - Exceptional rigor, originality, and practical consequence.
    - Introduces or validates ideas that meaningfully advance the field.
-   - Stands up to adversarial scrutiny and remains durable over time.
+   - Stands up to adversarial scrutiny, remains durable over time, and communicates the core contribution with exceptional clarity.
 
 ## Distribution Targets
 
@@ -142,6 +146,7 @@ When rating an article, provide:
 - No mention of popularity metrics (karma, likes, shares) as quality evidence.
 - If relevant, note that politics-first framing reduced the score due to poor technical focus.
 - If relevant, explicitly note when overt emotional framing triggered a major penalty.
+- If relevant, explicitly note when poor accessibility to cross-domain readers reduced the score.
 `;
 
 const localConstitutionAddendumHeader = "## Local Enforcement Addendum";
@@ -153,15 +158,23 @@ These rules are strict and override ambiguity in source material:
 - Strongly deprioritize political and overtly emotional content unless the technical/scientific analysis is clearly dominant.
 - If an article is mainly politics-first or emotion-first with limited technical evidence, do not rate above Merchant's Word.
 - If emotional or partisan rhetoric is central and technical depth is weak, prefer Common Rumour.
+- Prefer work that explains complex ideas in language accessible to engineers/scientists from adjacent domains.
+- If an article requires deep subfield expertise and does not provide adequate context, definitions, or framing, apply a meaningful penalty.
+- If outsider comprehensibility is weak, do not rate above Captain's Account unless explanatory scaffolding is exceptional.
 - In qualityChecklist.penalties and qualityRationale, explicitly state when this penalty affected the final score.
 `.trim();
 
-const withLocalConstitutionAddendum = (text: string): string => {
-  if (text.includes(localConstitutionAddendumHeader)) {
-    return text;
+const stripExistingLocalConstitutionAddendum = (text: string): string => {
+  const headerIdx = text.indexOf(localConstitutionAddendumHeader);
+  if (headerIdx === -1) {
+    return text.trim();
   }
 
-  return `${text.trim()}\n\n${localConstitutionAddendum}\n`;
+  return text.slice(0, headerIdx).trimEnd();
+};
+
+const withLocalConstitutionAddendum = (text: string): string => {
+  return `${stripExistingLocalConstitutionAddendum(text)}\n\n${localConstitutionAddendum}\n`;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
