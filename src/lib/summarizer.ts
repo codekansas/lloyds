@@ -153,7 +153,7 @@ const summarizeChecklistForRationale = (checklist: z.infer<typeof qualityCheckli
     checklistSummary.push(`Penalties: ${normalizedPenalty}`);
   }
 
-  return trimToMax(checklistSummary.join(" "), 260);
+  return checklistSummary.join(" ");
 };
 
 const buildQualityRationale = ({
@@ -163,14 +163,14 @@ const buildQualityRationale = ({
   qualityRationale: string;
   qualityChecklist?: z.infer<typeof qualityChecklistSchema>;
 }): string => {
-  const normalizedRationale = trimToMax(cleanSentence(qualityRationale), 960);
+  const normalizedRationale = cleanSentence(qualityRationale);
 
   if (!qualityChecklist) {
     return normalizedRationale;
   }
 
   const checklistSummary = summarizeChecklistForRationale(qualityChecklist);
-  return trimToMax(`${normalizedRationale}\n\nChecklist signals: ${checklistSummary}`, 1200);
+  return `${normalizedRationale}\n\nChecklist signals: ${checklistSummary}`;
 };
 
 const logSummaryGradingFailure = (error: SummaryGradingError): void => {

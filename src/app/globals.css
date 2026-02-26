@@ -514,7 +514,7 @@ button {
   max-height: min(85vh, 46rem);
   overflow: auto;
   border: 1px solid var(--line);
-  background: var(--surface-panel);
+  background: var(--paper);
   box-shadow: var(--shadow-masthead);
   padding: 0.95rem;
   display: grid;
