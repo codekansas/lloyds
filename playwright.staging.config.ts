@@ -9,6 +9,7 @@ if (!baseUrl) {
 export default defineConfig({
   testDir: "./e2e/staging",
   fullyParallel: true,
+  workers: 1,
   timeout: 60_000,
   expect: {
     timeout: 10_000,

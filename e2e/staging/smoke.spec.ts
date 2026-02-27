@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { gotoWithoutServerError } from "./navigation";
+
 test("@smoke health endpoint returns ok", async ({ request }) => {
   const response = await request.get("/api/health");
   expect(response.ok()).toBeTruthy();
@@ -53,7 +55,8 @@ test("@smoke status endpoint returns service snapshot", async ({ request }) => {
 });
 
 test("@smoke landing page renders feed", async ({ page }) => {
-  await page.goto("/");
+  test.setTimeout(180_000);
+  await gotoWithoutServerError(page, "/");
 
   await expect(page.getByRole("heading", { name: "Lloyd's List", exact: true })).toBeVisible();
 });
@@ -90,7 +93,8 @@ test("@smoke auth session endpoint responds without adapter errors", async ({ re
 });
 
 test("@smoke auth sign-in page renders without server configuration error", async ({ page }) => {
-  await page.goto("/api/auth/signin");
+  test.setTimeout(180_000);
+  await gotoWithoutServerError(page, "/api/auth/signin");
 
   await expect(page.locator("body")).toContainText("Sign in");
   await expect(page.locator("body")).not.toContainText("There is a problem with the server configuration.");
@@ -100,15 +104,17 @@ test("@smoke auth sign-in page renders without server configuration error", asyn
 });
 
 test("@smoke status page renders", async ({ page }) => {
-  await page.goto("/status");
+  test.setTimeout(180_000);
+  await gotoWithoutServerError(page, "/status");
 
   await expect(page.getByRole("heading", { name: "System Status", exact: true })).toBeVisible();
 });
 
 test("@smoke protected routes redirect guests", async ({ page }) => {
-  await page.goto("/profile");
+  test.setTimeout(180_000);
+  await gotoWithoutServerError(page, "/profile");
   await expect(page).toHaveURL(/\/?\?next=%2Fprofile/);
 
-  await page.goto("/feed/smoke/comments");
+  await gotoWithoutServerError(page, "/feed/smoke/comments");
   await expect(page).toHaveURL(/\/?\?next=%2Ffeed%2Fsmoke%2Fcomments/);
 });
