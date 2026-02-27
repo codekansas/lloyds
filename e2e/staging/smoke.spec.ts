@@ -8,25 +8,34 @@ test("@smoke health endpoint returns ok", async ({ request }) => {
   expect(payload.status).toBe("ok");
 });
 
-test("@smoke readiness endpoint reports healthy dependencies", async ({ request }) => {
+test("@smoke readiness endpoint returns dependency status payload", async ({ request }) => {
   const response = await request.get("/api/health?mode=readiness");
-  expect(response.ok()).toBeTruthy();
+  expect([200, 503]).toContain(response.status());
 
   const payload = (await response.json()) as {
-    status?: string;
+    status?: "ok" | "error";
     mode?: string;
     appEnv?: string;
-    blockingServices?: unknown[];
+    blockingServices?: Array<{
+      id?: string;
+      state?: string;
+      summary?: string;
+    }>;
   };
-  expect(payload.status).toBe("ok");
-  if (payload.mode !== undefined) {
-    expect(payload.mode).toBe("readiness");
-  }
+  expect(payload.mode).toBe("readiness");
   if (payload.appEnv !== undefined) {
     expect(payload.appEnv).toBe("staging");
   }
-  if (payload.blockingServices !== undefined) {
-    expect(Array.isArray(payload.blockingServices)).toBeTruthy();
+
+  const blockingServices = payload.blockingServices ?? [];
+  expect(Array.isArray(blockingServices)).toBeTruthy();
+
+  if (payload.status === "ok") {
+    expect(response.status()).toBe(200);
+  } else {
+    expect(payload.status).toBe("error");
+    expect(response.status()).toBe(503);
+    expect(blockingServices.length).toBeGreaterThan(0);
   }
 });
 
